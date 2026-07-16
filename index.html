@@ -1,0 +1,193 @@
+// DIRECT PDF DOWNLOAD GENERATOR
+function downloadPDF(){
+    try {
+        updatePreview();
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const logoData = localStorage.getItem('eby_logo');
+        
+        // 1. Watermark Page Logo (Safe Opacity Method)
+        if(logoData) {
+            doc.saveGraphicsState();
+            // Safe native opacity settings
+            if (typeof doc.setGState === "function") {
+                try {
+                    doc.setGState(new doc.GState({ opacity: 0.18 }));
+                } catch(e) {
+                    // Fallback if GState instance creation fails
+                    doc.setFillColor(255, 255, 255);
+                }
+            }
+            doc.addImage(logoData, 'PNG', 10, 35, 190, 190);
+            doc.restoreGraphicsState();
+        }
+        
+        // 2. Small Header Logo behind Name
+        if(logoData) {
+            doc.saveGraphicsState();
+            if (typeof doc.setGState === "function") {
+                try {
+                    doc.setGState(new doc.GState({ opacity: 0.25 }));
+                } catch(e) {}
+            }
+            doc.addImage(logoData, 'PNG', 15, 12, 38, 38);
+            doc.restoreGraphicsState();
+        }
+        
+        // Header Info
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        doc.setTextColor(10, 37, 64);
+        doc.text("EBY-GOLD SUPERSTORES", 14, 20);
+        
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(80, 80, 80);
+        doc.text("19, Jejelaiye Street, Surulere, Lagos.", 14, 26);
+        doc.text("Tel: 07058016395", 14, 31);
+        doc.text("Email: ebereakaolisa5@gmail.com", 14, 36);
+        
+        // Metadata block
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(10, 37, 64);
+        doc.text(document.getElementById('docType').value.toUpperCase(), 196, 20, { align: "right" });
+        
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
+        doc.text("INVOICE NO: " + document.getElementById('invNo').innerText, 196, 28, { align: "right" });
+        doc.text("DATE: " + document.getElementById('invDate').innerText, 196, 34, { align: "right" });
+        
+        // Line separator
+        doc.setDrawColor(10, 37, 64);
+        doc.setLineWidth(0.5);
+        doc.line(14, 42, 196, 42);
+        
+        // Client section
+        doc.setFont("helvetica", "bold");
+        doc.text("BILLED TO:", 14, 50);
+        doc.setFont("helvetica", "normal");
+        doc.text(document.getElementById('billedTo').value || "N/A", 14, 56);
+        doc.text(document.getElementById('phone').value || "N/A", 14, 62);
+        doc.text(document.getElementById('address').value || "N/A", 14, 68);
+        
+        // Items table data
+        const tableData = items.map((it, i) => [
+            i + 1,
+            it.name,
+            it.qty,
+            "N " + it.rate.toLocaleString(),
+            "N " + it.total.toLocaleString()
+        ]);
+        
+        // Draw Naira Bars Over 'N' (Safe Coordinate Check)
+        const patchNaira = function (data) {
+            if (data.cell && data.cell.text && data.cell.text.length > 0) {
+                const cellText = String(data.cell.text[0] || '');
+                // Defensive check to ensure textPos and coordinates exist before using them
+                if (cellText.startsWith('N') && data.cell.textPos && typeof data.cell.textPos.x !== 'undefined' && typeof data.cell.textPos.y !== 'undefined') {
+                    let x = data.cell.textPos.x;
+                    let y = data.cell.textPos.y;
+                    let clr = data.cell.styles.textColor || [0, 0, 0];
+                    
+                    data.doc.saveGraphicsState();
+                    if (Array.isArray(clr)) {
+                        data.doc.setDrawColor(clr[0], clr[1], clr[2]);
+                    } else {
+                        data.doc.setDrawColor(0, 0, 0);
+                    }
+                    data.doc.setLineWidth(0.35);
+                    data.doc.line(x - 0.2, y - 2.2, x + 2.4, y - 2.2);
+                    data.doc.line(x - 0.2, y - 1.2, x + 2.4, y - 1.2);
+                    data.doc.restoreGraphicsState();
+                }
+            }
+        };
+
+        doc.autoTable({
+            startY: 75,
+            head: [['S/N', 'Items', 'Qty', 'Rate', 'Total']],
+            body: tableData,
+            headStyles: { fillColor: [10, 37, 64], textColor: [255, 255, 255] },
+            theme: 'grid',
+            didDrawCell: patchNaira
+        });
+        
+        // Fallback default coordinates if table is empty
+        let finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? (doc.lastAutoTable.finalY + 12) : 95;
+        
+        let subtotal = items.reduce((a, b) => a + b.total, 0);
+        let vat = document.getElementById('vat').checked ? subtotal * 0.075 : 0;
+        let total = subtotal + vat;
+
+        // Build Totals side info
+        let totalsBody = [['Subtotal', "N " + subtotal.toLocaleString()]];
+        if(vat > 0) {
+            totalsBody.push(['VAT 7.5%', "N " + vat.toLocaleString()]);
+        }
+        totalsBody.push(['Total', "N " + total.toLocaleString()]);
+
+        doc.autoTable({
+            startY: finalY,
+            margin: { left: 130 },
+            tableWidth: 66,
+            body: totalsBody,
+            theme: 'grid',
+            styles: { fontSize: 9, halign: 'right' },
+            columnStyles: {
+                0: { fontStyle: 'bold', fillColor: [248, 250, 252], halign: 'left' }
+            },
+            didDrawCell: patchNaira,
+            didParseCell: function (data) {
+                if (data.row.index === totalsBody.length - 1) {
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.textColor = [10, 37, 64];
+                    if (data.column.index === 1) {
+                        data.cell.styles.fontSize = 11;
+                    }
+                }
+            }
+        });
+
+        let wordY = finalY - 4;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(10, 37, 64);
+        
+        let wordsText = "Amount in Words: " + numToWords(total);
+        doc.text(wordsText, 14, wordY);
+        let textWidth = doc.getTextWidth(wordsText);
+        doc.setDrawColor(10, 37, 64);
+        doc.setLineWidth(0.5);
+        doc.line(14, wordY + 1.5, 14 + textWidth, wordY + 1.5);
+
+        // Left Bank details
+        doc.autoTable({
+            startY: wordY + 4,
+            margin: { left: 14 },
+            tableWidth: 85,
+            head: [['PAYMENT INFORMATION', '']],
+            body: [
+                ['Bank', 'UBA'],
+                ['Account No', '2189015307'],
+                ['Account Name', 'Ebere Favour Akaolisa']
+            ],
+            headStyles: { fillColor: [10, 37, 64], textColor: [255, 255, 255], fontStyle: 'bold' },
+            theme: 'grid',
+            styles: { fontSize: 8 }
+        });
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text("Thank you for choosing Eby-Gold Superstores", 105, 282, { align: "center" });
+        
+        let filename = (document.getElementById('invNo').innerText || 'invoice').replace('#','');
+        doc.save(filename + '.pdf');
+    } catch(err) {
+        console.error("PDF Download Error Details:", err);
+        alert("Error: " + err.message);
+    }
+}
