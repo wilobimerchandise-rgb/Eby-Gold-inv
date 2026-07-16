@@ -46,6 +46,41 @@ Invoice app
       z-index: 0;
       pointer-events: none;
     }
+    <style>
+/* WATERMARK - more visible */
+.watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    opacity: 0.12; /* was 0.08, now darker */
+    width: 400px;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* TABLE - bold borders for rows + columns */
+.items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    border: 2px solid #0a2540; /* outer border */
+}
+.items-table th, .items-table td {
+    border: 1px solid #0a2540; /* cell borders */
+    padding: 10px;
+    text-align: left;
+    font-size: 12px;
+}
+.items-table th {
+    background: #0a2540;
+    color: white;
+    font-weight: 700;
+}
+.items-table tr:nth-child(even) {
+    background: #f8fafc;
+}
+</style>
    .receipt-content { position: relative; z-index: 1; }
 
    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px dashed var(--border); padding-bottom: 15px; margin-bottom: 15px; }
