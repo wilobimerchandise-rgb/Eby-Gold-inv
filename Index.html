@@ -1,0 +1,327 @@
+# Eby-Gold-inv
+Invoice app
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eby-Gold Superstores Invoice & Receipt Generator</title>
+
+  <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkVieS1Hb2xkIEdlbmVyYXRvciIsCiAgInNob3J0X25hbWUiOiAiRWJ5LUdvbGQiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2UwZjJmZSIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDFmM2YiCn0=">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #001f3f; --secondary: #4a5568; --accent: #2e7d32;
+      --unpaid: #1e3a8a; --danger: #d32f2f; --card: #ffffff; 
+      --border: #cbd5e1; --gradient-start: #e0f2fe; --gradient-end: #f3e8ff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%); padding: 15px; display: flex; flex-direction: column; align-items: center; gap: 20px; min-height: 100vh; }
+   .app-container { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 20px; }
+   .card { background: var(--card); border-radius: 16px; padding: 24px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); position: relative; }
+    h3 { font-size: 16px; font-weight: 800; color: var(--primary); margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+   .form-group { margin-bottom: 12px; }
+   .form-group label { display: block; font-size: 12px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+   .form-group input,.form-group textarea,.form-group select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-weight: 700; outline: none; background-color: #fff; }
+   .form-group textarea { resize: vertical; min-height: 50px; }
+   .checkbox-group { display: flex; align-items: center; gap: 8px; margin: 15px 0; }
+   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    button { width: 100%; padding: 12px; border: none; border-radius: 8px; background: var(--primary); color: white; font-weight: 800; font-size: 14px; cursor: pointer; transition: 0.2s; }
+    button:hover { background: #112d4e; }
+   .history-list { display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; margin-top: 10px; }
+   .history-item { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 12px; }
+
+    /* Watermark */
+   .receipt-container { position: relative; overflow: hidden; }
+   .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      width: 85%;
+      opacity: 0.06;
+      z-index: 0;
+      pointer-events: none;
+    }
+   .receipt-content { position: relative; z-index: 1; }
+
+   .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px dashed var(--border); padding-bottom: 15px; margin-bottom: 15px; }
+   .header-left { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+   .logo-upload { width: 90px; height: 90px; border: 2px dashed var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; background: #f8fafc; }
+   .logo-upload img { width: 100%; height: 100%; object-fit: contain; }
+   .logo-text { font-size: 21px; font-weight: 900; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; }
+   .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+   .status-badge.paid { background: rgba(46, 125, 50, 0.12); color: var(--accent); }
+   .status-badge.unpaid { background: rgba(30, 58, 138, 0.12); color: var(--unpaid); }
+   .info-section { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 15px; line-height: 1.5; }
+   .info-block h4 { color: var(--primary); font-size: 10px; text-transform: uppercase; font-weight: 800; margin-bottom: 2px; }
+   .item-list { margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; }
+   .table-header,.table-row { display: grid; grid-template-columns: 0.5fr 2fr 0.6fr 1.2fr 1.3fr; padding: 8px 4px; font-size: 12px; }
+   .table-header { font-weight: 900; background: #f8fafc; border-bottom: 1.5px solid var(--primary); }
+   .table-row { border-bottom: 1px solid var(--border); }
+   .col-total { display: flex; justify-content: space-between; align-items: center; }
+   .delete-btn { background: transparent; color: var(--danger); border: none; cursor: pointer; font-weight: 900; width: auto; padding: 0 4px; }
+   .summary { background: #fafafc; padding: 12px; border-radius: 8px; margin-bottom: 15px; }
+   .summary-row,.total-row { display: flex; justify-content: space-between; font-weight: 800; margin-bottom: 6px; }
+   .total-row { font-size: 17px; font-weight: 900; color: var(--primary); border-top: 2px solid var(--primary); padding-top: 10px; }
+   .payment-block { background: rgba(224, 242, 254, 0.45); border: 1.5px dashed var(--primary); border-radius: 10px; padding: 12px; margin-bottom: 15px; font-size: 12px; }
+   .editable-value { font-weight: 900; color: var(--primary); border-bottom: 1px dashed transparent; padding: 2px 4px; cursor: pointer; }
+   .editable-value:focus { background: #fff; border: 1px solid var(--primary); outline: none; }
+   .util-buttons { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+   .offline-badge { display: none; background: #475569; color: white; text-align: center; padding: 6px; font-size: 11px; font-weight: 800; border-radius: 8px; }
+    @media print {.creator-card,.db-card,.offline-badge,.util-buttons { display: none!important; } body { background: white; }.card { box-shadow: none; }.editable-value { border: none!important; }.watermark { opacity: 0.08; } }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div id="offlineIndicator" class="offline-badge">🔌 Operating in Offline Mode</div>
+
+    <div class="card creator-card">
+      <h3>Document Settings</h3>
+      <div class="form-group">
+        <label for="docType">Document Type</label>
+        <select id="docType" onchange="toggleDocumentType()">
+          <option value="receipt" selected>Receipt (Paid)</option>
+          <option value="invoice">Invoice (Unpaid)</option>
+        </select>
+      </div>
+
+      <h3>Customer Details</h3>
+      <div class="form-group">
+        <label for="customerName">Customer Name</label>
+        <input type="text" id="customerName" placeholder="Walk-in Customer">
+      </div>
+      <div class="form-group">
+        <label for="customerPhone">Customer Phone</label>
+        <input type="tel" id="customerPhone" placeholder="0803 000 0000">
+      </div>
+      <div class="form-group">
+        <label for="customerAddress">Customer Address</label>
+        <textarea id="customerAddress" placeholder="123 Main Street, Lagos"></textarea>
+      </div>
+
+      <h3>Add Items</h3>
+      <div class="form-group"><label for="itemName">Item Name</label><input type="text" id="itemName"></div>
+      <div class="form-row">
+        <div class="form-group"><label for="itemQty">Quantity</label><input type="number" id="itemQty" value="1" min="1"></div>
+        <div class="form-group"><label for="itemPrice">Unit Price (₦)</label><input type="number" id="itemPrice" value="0" min="0"></div>
+      </div>
+      <div class="checkbox-group"><input type="checkbox" id="includeVat" checked onchange="renderInvoice()"><label for="includeVat">Charge 7.5% VAT</label></div>
+      <button onclick="addItem()">Add Item to Table</button>
+    </div>
+
+    <div class="card receipt-container" id="printArea">
+      <img id="watermarkLogo" class="watermark" src="" alt="watermark">
+      <div class="receipt-content">
+        <div class="header">
+          <div class="header-left">
+            <label class="logo-upload" for="logoInput">
+              <img id="logoPreview" src="" alt="Click to add Logo">
+            </label>
+            <input type="file" id="logoInput" accept="image/*" style="display:none">
+            <div class="logo-text">Eby-Gold Superstores</div>
+            <p id="docSubtitle" style="font-size: 11px; color: var(--secondary); font-weight: 800;">Sales Receipt</p>
+          </div>
+          <div class="header-right"><span id="statusBadge" class="status-badge paid">Paid</span></div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-block">
+            <h4>Billed To</h4>
+            <p id="billedToName">Walk-in Customer</p>
+            <p id="billedToPhone" style="font-size:10px; color:var(--secondary);"></p>
+            <p id="billedToAddress" style="font-size:10px; color:var(--secondary); max-width:180px;"></p>
+          </div>
+          <div class="info-block" style="text-align: right;">
+            <h4 id="docRefLabel">Receipt No.</h4>
+            <p id="docRefNo">#EGS-REC-2026-104</p>
+            <p id="currentDate"></p>
+          </div>
+        </div>
+
+        <div class="item-list">
+          <div class="table-header"><span>S/N</span><span>Items</span><span style="text-align:center;">Qty</span><span style="text-align:right;">Rate</span><span style="text-align:right;">Total</span></div>
+          <div id="itemList"></div>
+        </div>
+
+        <div class="summary">
+          <div class="summary-row"><span>Subtotal</span><span id="subtotalLabel">₦0.00</span></div>
+          <div class="summary-row" id="vatRow"><span>VAT (7.5%)</span><span id="taxLabel">₦0.00</span></div>
+          <div class="total-row"><span id="totalLabelText">Total Paid</span><span id="totalLabel">₦0.00</span></div>
+        </div>
+
+        <div class="payment-block">
+          <h4>Direct Bank Transfer Details <span style="font-size:9px; font-weight:normal;">(Click to edit)</span></h4>
+          <div class="payment-row"><span>Bank:</span><span id="dbBank" class="editable-value" contenteditable="true">Access Bank</span></div>
+          <div class="payment-row"><span>Account No:</span><span id="dbAccount" class="editable-value" contenteditable="true">1234567890</span></div>
+          <div class="payment-row"><span>Account Name:</span><span id="dbName" class="editable-value" contenteditable="true">Eby-Gold Superstores</span></div>
+        </div>
+
+        <div class="footer" style="text-align:center;">
+          <p style="font-size:13px; font-weight:900; color:var(--primary);">Thank You for your patronage, we expect to see you soon</p>
+          <div class="util-buttons">
+            <button onclick="saveActiveTransaction()" style="background: var(--accent); flex:1;">Save</button>
+            <button onclick="downloadPDF()" style="background: #2563eb; flex:1;">Download PDF</button>
+            <button id="markPaidBtn" onclick="convertToReceipt()" style="background: #2e7d32; flex:1; display:none;">Mark as Paid</button>
+            <button onclick="window.print()" style="background: #e2e8f0; color: var(--primary); flex:1;">Print</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card db-card">
+      <h3>Saved Transactions Database</h3>
+      <div id="dbContainer" class="history-list"></div>
+    </div>
+  </div>
+
+  <script>
+    let invoiceItems = [];
+    const TAX_RATE = 0.075;
+
+    window.onload = function() {
+      document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      loadLogo();
+      renderInvoice();
+      loadDatabase();
+      initOfflineHandlers();
+    }
+
+    // LOGO UPLOAD + WATERMARK
+    document.getElementById('logoInput').addEventListener('change', function(e) {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        document.getElementById('logoPreview').src = event.target.result;
+        document.getElementById('watermarkLogo').src = event.target.result;
+        localStorage.setItem('ebyGoldLogo', event.target.result);
+      }
+      reader.readAsDataURL(file);
+    });
+    function loadLogo() {
+      const savedLogo = localStorage.getItem('ebyGoldLogo');
+      if (savedLogo) {
+        document.getElementById('logoPreview').src = savedLogo;
+        document.getElementById('watermarkLogo').src = savedLogo;
+      }
+    }
+
+    // CUSTOMER INPUTS
+    ['customerName', 'customerPhone', 'customerAddress'].forEach(id => {
+      document.getElementById(id).addEventListener('input', e => {
+        document.getElementById('billedTo' + id.replace('customer','')).innerText = e.target.value;
+      });
+    });
+
+    async function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const element = document.getElementById('printArea');
+      const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(document.getElementById('docRefNo').innerText + '.pdf');
+    }
+
+    function toggleDocumentType() {
+      const docType = document.getElementById('docType').value;
+      const markBtn = document.getElementById('markPaidBtn');
+      if (docType === 'invoice') {
+        document.getElementById('docSubtitle').innerText = 'Sales Invoice';
+        document.getElementById('statusBadge').innerText = 'Unpaid';
+        document.getElementById('statusBadge').className = 'status-badge unpaid';
+        document.getElementById('docRefLabel').innerText = 'Invoice No.';
+        document.getElementById('docRefNo').innerText = '#EGS-INV-' + Date.now().toString().slice(-6);
+        document.getElementById('totalLabelText').innerText = 'Total Due';
+        markBtn.style.display = 'block';
+      } else {
+        document.getElementById('docSubtitle').innerText = 'Sales Receipt';
+        document.getElementById('statusBadge').innerText = 'Paid';
+        document.getElementById('statusBadge').className = 'status-badge paid';
+        document.getElementById('docRefLabel').innerText = 'Receipt No.';
+        document.getElementById('docRefNo').innerText = '#EGS-REC-' + Date.now().toString().slice(-6);
+        document.getElementById('totalLabelText').innerText = 'Total Paid';
+        markBtn.style.display = 'none';
+      }
+    }
+
+    function renderInvoice() {
+      const listContainer = document.getElementById('itemList'); listContainer.innerHTML = ''; let subtotal = 0;
+      invoiceItems.forEach((item, index) => {
+        const itemTotal = item.qty * item.price; subtotal += itemTotal;
+        listContainer.innerHTML += `<div class="table-row"><span>${index + 1}</span><span>${escapeHTML(item.name)}</span><span style="text-align:center;">${item.qty}</span><span style="text-align:right;">₦${item.price.toLocaleString('en-NG')}</span><div class="col-total"><span>₦${itemTotal.toLocaleString('en-NG')}</span><button class="delete-btn" onclick="removeItem(${item.id})">✕</button></div></div>`;
+      });
+      const isVatChecked = document.getElementById('includeVat').checked;
+      const taxAmount = isVatChecked? (subtotal * TAX_RATE) : 0; const finalTotal = subtotal + taxAmount;
+      document.getElementById('vatRow').style.display = isVatChecked? 'flex' : 'none';
+      document.getElementById('subtotalLabel').innerText = `₦${subtotal.toLocaleString('en-NG', {minimumFractionDigits:2})}`;
+      document.getElementById('taxLabel').innerText = `₦${taxAmount.toLocaleString('en-NG', {minimumFractionDigits:2})}`;
+      document.getElementById('totalLabel').innerText = `₦${finalTotal.toLocaleString('en-NG', {minimumFractionDigits:2})}`;
+    }
+    function addItem() { 
+      const name=document.getElementById('itemName').value.trim(); 
+      const qty=parseInt(document.getElementById('itemQty').value); 
+      const price=parseFloat(document.getElementById('itemPrice').value); 
+      if(!name||qty<1||price<0){alert("Please fill valid item details");return;} 
+      invoiceItems.push({id:Date.now(),name,qty,price}); 
+      document.getElementById('itemName').value=''; 
+      document.getElementById('itemQty').value='1'; 
+      document.getElementById('itemPrice').value='0'; 
+      renderInvoice();
+    }
+    function removeItem(id) { invoiceItems = invoiceItems.filter(item => item.id!== id); renderInvoice(); }
+
+    function convertToReceipt() {
+      document.getElementById('docType').value = 'receipt';
+      toggleDocumentType();
+      saveActiveTransaction();
+      alert("Invoice converted to PAID Receipt and saved!");
+    }
+
+    function saveActiveTransaction() {
+      const db = JSON.parse(localStorage.getItem('ebyGoldDB') || '[]');
+      const savedTx = {
+        id: Date.now().toString(), docType: document.getElementById('docType').value,
+        refNo: document.getElementById('docRefNo').innerText, date: document.getElementById('currentDate').innerText,
+        customerName: document.getElementById('customerName').value, 
+        customerPhone: document.getElementById('customerPhone').value,
+        customerAddress: document.getElementById('customerAddress').value,
+        items: [...invoiceItems], isVatChecked: document.getElementById('includeVat').checked,
+        bank: document.getElementById('dbBank').innerText, acct: document.getElementById('dbAccount').innerText, acctName: document.getElementById('dbName').innerText
+      };
+      db.push(savedTx); localStorage.setItem('ebyGoldDB', JSON.stringify(db)); loadDatabase();
+      alert(`Saved ${savedTx.docType.toUpperCase()} ${savedTx.refNo} successfully!`);
+    }
+    function loadDatabase() {
+      const db = JSON.parse(localStorage.getItem('ebyGoldDB') || '[]'); const container = document.getElementById('dbContainer'); container.innerHTML = '';
+      if(db.length===0){container.innerHTML=`<div style="text-align:center;font-size:12px; color:var(--secondary);">No saved transactions.</div>`; return;}
+      db.reverse().forEach(tx => {
+        const total = tx.items.reduce((s,i)=>s+(i.qty*i.price),0) * (tx.isVatChecked?1.075:1);
+        container.innerHTML += `<div class="history-item"><div><div style="font-weight:800;">${tx.refNo}</div><div style="font-size:10px;">${tx.customerName || 'Walk-in'} | ₦${total.toLocaleString('en-NG')}</div></div><div><button onclick="restoreTx('${tx.id}')" style="padding:4px 8px; font-size:11px;">Load</button></div></div>`;
+      });
+    }
+    function restoreTx(txId) {
+      const db = JSON.parse(localStorage.getItem('ebyGoldDB') || '[]'); const tx = db.find(t => t.id === txId); if(!tx) return;
+      document.getElementById('docType').value = tx.docType; toggleDocumentType();
+      document.getElementById('customerName').value = tx.customerName; 
+      document.getElementById('customerPhone').value = tx.customerPhone;
+      document.getElementById('customerAddress').value = tx.customerAddress;
+      document.getElementById('billedToName').innerText = tx.customerName || 'Walk-in Customer'; 
+      document.getElementById('billedToPhone').innerText = tx.customerPhone;
+      document.getElementById('billedToAddress').innerText = tx.customerAddress;
+      document.getElementById('dbBank').innerText = tx.bank;
+      document.getElementById('dbAccount').innerText = tx.acct;
+      document.getElementById('dbName').innerText = tx.acctName;
+      document.getElementById('includeVat').checked = tx.isVatChecked;
+      invoiceItems = tx.items; renderInvoice();
+    }
+    function initOfflineHandlers() { const update = () => document.getElementById('offlineIndicator').style.display = navigator.onLine? 'none' : 'block'; window.addEventListener('online', update); window.addEventListener('offline', update); update(); }
+    function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[tag])); }
+  </script>
+</body>
+  </html>
