@@ -73,6 +73,16 @@ Invoice app
    .util-buttons { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
    .offline-badge { display: none; background: #475569; color: white; text-align: center; padding: 6px; font-size: 11px; font-weight: 800; border-radius: 8px; }
     @media print {.creator-card,.db-card,.offline-badge,.util-buttons { display: none!important; } body { background: white; }.card { box-shadow: none; }.editable-value { border: none!important; }.watermark { opacity: 0.08; } }
+    <div class="item-list">
+  <div class="table-header">
+    <span>S/N</span>
+    <span>Items</span>
+    <span style="text-align:center;">Qty</span>
+    <span style="text-align:right;">Rate</span>
+    <span style="text-align:right;">Total</span>
+  </div>
+  <div id="itemList"></div>
+</div>
   </style>
 </head>
 <body>
