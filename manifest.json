@@ -1,0 +1,21 @@
+{
+  "short_name": "WilObiInvoice",
+  "name": "Wil-Obi Invoice & Receipt App",
+  "start_url": "./index.html",
+  "background_color": "#F3F4F6",
+  "theme_color": "#1D4ED8",
+  "display": "standalone",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://via.placeholder.com/512",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}
