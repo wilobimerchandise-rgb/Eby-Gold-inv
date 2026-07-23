@@ -17,6 +17,1080 @@
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
 body { background: var(--bg); color: var(--text); }
 
+/* LOGIN & MODALS */
+.login-wrap { display: flex; justify-content: center; align-items: center; height: 100vh; padding: 20px; }
+.login-card { background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: left; }
+.login-card img { display: block; width: 100px; margin: 0 auto 15px auto; }
+.login-card h2, .login-card p { text-align: center; }
+.login-card input[type="text"], .login-card input[type="password"] { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
+.login-options { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; font-size: 13px; color: #4a5568; }
+.login-options label { display: flex; align-items: center; gap: 5px; cursor: pointer; font-weight: normal; margin-bottom: 0; }
+.login-options input { cursor: pointer; }
+.login-err { color: #dc2626; font-size: 13px; font-weight: 600; display: none; margin-top: 5px; margin-bottom: 10px; text-align: center; }
+.toggle-link { color: var(--primary); text-decoration: underline; cursor: pointer; font-size: 13px; font-weight: 600; display: block; text-align: center; margin-top: 15px; }
+
+/* MODAL FOR CHANGE PASSWORD */
+.modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+.modal-content { background: var(--card); padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; position: relative; }
+.close-modal { position: absolute; right: 15px; top: 10px; font-size: 20px; cursor: pointer; font-weight: bold; color: #666; }
+
+.btn { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 10px; }
+.btn:hover { background: #12395e; }
+.btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-group .btn { width: auto; flex: 1; min-width: 120px; }
+.btn-gold { background: var(--gold); color: var(--primary); }
+.btn-gold:hover { background: #c49f2a; }
+
+/* APP LAYOUT */
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; display: none; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+.header h1 { color: var(--primary); }
+.app-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+@media (max-width: 900px) {
+    .app-grid { grid-template-columns: 1fr; }
+}
+
+.card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+.preview-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; position: relative; }
+input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; }
+label { font-weight: 600; font-size: 13px; margin-bottom: 5px; display: block; }
+
+/* AUTOCOMPLETE SUGGESTIONS */
+.autocomplete-wrapper { position: relative; }
+.suggestions-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+    z-index: 10;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    display: none;
+}
+.suggestions-list div {
+    padding: 10px;
+    cursor: pointer;
+    font-size: 13px;
+}
+.suggestions-list div:hover {
+    background: #f1f5f9;
+}
+
+/* HISTORY SIDEBAR PANEL */
+.history-title { font-size: 16px; font-weight: bold; color: var(--primary); margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 5px; }
+.history-list { display: flex; flex-direction: column; gap: 10px; max-height: 600px; overflow-y: auto; }
+.history-item { padding: 12px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+.history-item:hover { background: #f1f5f9; border-color: var(--primary); }
+.history-item-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 13px; margin-bottom: 5px; }
+.history-item-body { font-size: 12px; color: #64748b; }
+
+/* TABLE Adjustments */
+.items-table { width: 100%; border-collapse: collapse; margin: 20px 0; border: 2px solid var(--primary); }
+.items-table th,.items-table td { border: 1px solid var(--primary); padding: 10px; text-align: left; font-size: 12px; }
+.items-table th { background: var(--primary); color: white; font-weight: 700; }
+.items-table tr:nth-child(even) { background: #f8fafc; }
+.items-table th:first-child, .items-table td:first-child { width: 50px; text-align: center; }
+.action-btn { color: red; cursor: pointer; border: none; background: none; font-size: 16px; font-weight: bold; }
+
+/* INVOICE PREVIEW */
+.invoice { background: white; padding: 30px; position: relative; min-height: 900px; border: 1px solid #ddd; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; }
+.invoice-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px; position: relative; }
+.logo-box { width: 130px; height: 130px; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 8px; overflow: hidden; font-weight: 800; }
+.logo-box img { width: 100%; height: 100%; object-fit: contain; }
+
+/* BOLD BRAND LOGO BEHIND NAME */
+.brand-wrapper { position: relative; display: inline-block; }
+.brand-bg-logo {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 280px;
+    height: auto;
+    opacity: 0.3;
+    z-index: -1;
+    pointer-events: none;
+}
+
+.company-name { font-size: 26px; font-weight: 900; color: var(--primary); letter-spacing: 1px; line-height: 1.2; position: relative; z-index: 1; }
+.company-details { font-size: 12px; color: #4a5568; margin-top: 5px; line-height: 1.4; position: relative; z-index: 1; }
+.status-badge { background: #fef3c7; color: #92400e; padding: 6px 12px; border-radius: 20px; font-weight: 600; display: inline-block; margin-bottom: 10px; }
+
+/* IN WORDS */
+.words-container {
+    margin: 15px 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    line-height: 1.6;
+    word-wrap: break-word;
+    white-space: normal;
+}
+.words-underlined {
+    text-decoration: underline;
+    text-transform: capitalize;
+}
+
+/* PAYMENT & TOTALS GRID */
+.bottom-section { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px; margin-top: 15px; }
+.payment-table, .totals-table { border-collapse: collapse; width: 280px; font-size: 12px; }
+.payment-table { border: 1.5px solid var(--primary); }
+.payment-table th { background: var(--primary); color: white; padding: 6px 10px; text-align: left; font-size: 11px; }
+.payment-table td { border: 1px solid #cbd5e1; padding: 6px 10px; }
+
+.totals-table { border: 1px solid #94a3b8; margin-left: auto; }
+.totals-table td { padding: 8px 12px; border: 1px solid #94a3b8; text-align: right; }
+.totals-table td:first-child { font-weight: bold; text-align: left; background: #f8fafc; }
+.totals-table tr.grand-total td { font-size: 14px; font-weight: bold; color: var(--primary); }
+
+/* FOOTER SECTION */
+.invoice-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 40px; font-size: 12px; color: #64748b; border-top: 1px dashed #e2e8f0; }
+.footer-created-by { font-weight: 700; color: var(--primary); text-transform: capitalize; }
+
+/* WATERMARK */
+.watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    opacity: 0.18;
+    width: 100%;
+    height: auto;
+    max-width: 650px;
+    z-index: 0;
+    pointer-events: none;
+    filter: contrast(1.1);
+}
+.invoice-content { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; justify-content: space-between; flex-grow: 1; }
+
+/* PRINT */
+@media print {
+    body * { visibility: hidden; }
+    .invoice, .invoice * { visibility: visible; }
+    .invoice { position: absolute; left: 0; top: 0; width: 100%; border: none; }
+    .action-btn, .no-print, .app-grid { display: none !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN / SIGN UP -->
+<div class="login-wrap" id="loginScreen">
+    <div class="login-card" id="loginCard">
+        <img src="" id="loginLogo" alt="Eby-Gold">
+        <h2 style="color:var(--primary); font-weight:900">EBY-GOLD SUPERSTORES</h2>
+        <p style="margin-bottom: 10px; font-size: 13px; color: #64748b;" id="loginSubText">Please sign in to continue</p>
+        
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        
+        <div class="login-options">
+            <label><input type="checkbox" id="rememberMe"> Remember Me</label>
+            <label><input type="checkbox" id="showPassword" onclick="togglePasswordVisibility()"> Show Password</label>
+        </div>
+        
+        <div class="login-err" id="loginError">Invalid username or password!</div>
+        
+        <button class="btn" id="primaryLoginBtn" onclick="login()">Login</button>
+        <span class="toggle-link" id="authToggle" onclick="toggleAuthMode()">Don't have an account? Sign Up</span>
+    </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="modal" id="pwdModal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closePwdModal()">&times;</span>
+        <h3 style="color: var(--primary); margin-bottom: 15px;">Change Password</h3>
+        <input type="password" id="oldPwd" placeholder="Current Password">
+        <input type="password" id="newPwd" placeholder="New Preferred Password">
+        <div class="login-err" id="pwdError">Incorrect password!</div>
+        <button class="btn" onclick="submitPasswordChange()">Update Password</button>
+    </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="container" id="appScreen">
+    <div class="header">
+        <h1>Workstation</h1>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span id="loggedInAs" style="font-weight: 600; color: var(--primary);"></span>
+            <button class="btn btn-gold" style="width:auto; margin-top: 0; padding: 8px 15px;" onclick="openPwdModal()">🔑 Password</button>
+            <button class="btn" style="width:auto; margin-top: 0; padding: 8px 15px;" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <!-- DOUBLE COLUMN LAYOUT: Entry forms on Left, Databases & History Sidebar on Right -->
+    <div class="app-grid">
+        <div>
+            <!-- Client card with autocomplete -->
+            <div class="card">
+                <h3>Customer Details</h3>
+                <div class="grid">
+                    <div class="autocomplete-wrapper">
+                        <label>Billed To</label>
+                        <input id="billedTo" placeholder="Customer Name" autocomplete="off" oninput="showClientSuggestions(this.value)">
+                        <div class="suggestions-list" id="clientSuggestions"></div>
+                    </div>
+                    <div><label>Phone</label><input id="phone" placeholder="080xxxxxxxx"></div>
+                    <div style="grid-column:1/-1"><label>Address</label><input id="address" placeholder="Customer Address"></div>
+                </div>
+            </div>
+
+            <!-- Invoice properties -->
+            <div class="card">
+                <h3>Document Configuration</h3>
+                <div class="grid">
+                    <div><label>Document Type</label>
+                        <select id="docType">
+                            <option>Sales Invoice</option>
+                            <option>Receipt</option>
+                            <option>Quotation</option>
+                        </select>
+                    </div>
+                    <div><label><input type="checkbox" id="vat"> Add 7.5% VAT</label></div>
+                </div>
+            </div>
+
+            <!-- Add Items with autocomplete -->
+            <div class="card">
+                <h3>Add Items</h3>
+                <div class="grid">
+                    <div class="autocomplete-wrapper">
+                        <label>Item Description</label>
+                        <input id="itemName" placeholder="Item Name" autocomplete="off" oninput="showItemSuggestions(this.value)">
+                        <div class="suggestions-list" id="itemSuggestions"></div>
+                    </div>
+                    <div><label>Qty</label><input id="qty" type="number" value="1"></div>
+                    <div><label>Rate (NGN)</label><input id="rate" type="number" value="0"></div>
+                    <div><button class="btn btn-gold" onclick="addItem()">Add to Table</button></div>
+                </div>
+                
+                <table class="items-table" id="itemsTable">
+                    <thead><tr><th>S/N</th><th>Items</th><th>Qty</th><th>Rate</th><th>Total</th><th class="no-print"></th></tr></thead>
+                    <tbody></tbody>
+                </table>
+
+                <!-- Action Controls -->
+                <div class="btn-group no-print">
+                    <button class="btn btn-gold" onclick="convertToReceipt()">🧾 Convert to Receipt</button>
+                    <button class="btn" id="viewDbBtn" onclick="toggleDatabaseSidebar()">🗄️ View Database</button>
+                    <button class="btn btn-gold" onclick="previewInvoice()">👁️ Preview Document</button>
+                    <button class="btn" onclick="downloadPDF()">⬇️ Download PDF</button>
+                    <button class="btn" onclick="printInvoice()">🖨️ Print</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SIDEBAR: INVOICE HISTORY & DATABASES -->
+        <div id="sidebarColumn">
+            <div class="card" style="height: calc(100% - 20px); overflow-y: auto;">
+                <div class="history-title">Saved Document History</div>
+                <div class="history-list" id="historyPanel">
+                    <!-- History database entries render dynamically here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PREVIEW AREA -->
+    <div class="card" id="previewCard" style="display:none; margin-top: 20px;">
+        <div class="preview-header no-print">
+            <h3>Invoice Preview</h3>
+            <button class="btn btn-gold" style="width: auto; margin-top: 0;" onclick="downloadPDF()">⬇️ Download PDF</button>
+        </div>
+        
+        <div class="invoice" id="invoice">
+            <img src="" class="watermark" id="watermarkImg">
+            <div class="invoice-content">
+                <div>
+                    <div class="invoice-header">
+                        <div class="brand-wrapper">
+                            <img src="" class="brand-bg-logo" id="brandBgLogo" style="display:none">
+                            <div class="logo-box no-print" onclick="uploadLogo()"><span>+ Upload Logo</span><img id="logoPreview" style="display:none"></div>
+                            <h2 class="company-name">EBY-GOLD SUPERSTORES</h2>
+                            <div class="company-details">
+                                <p>19, Jejelaiye Street, Surulere, Lagos.</p>
+                                <p><b>Tel:</b> 07058016395</p>
+                                <p><b>Email:</b> ebereakaolisa5@gmail.com</p>
+                            </div>
+                            <br>
+                            <h4 id="previewDocType" style="color: var(--primary);">Sales Invoice</h4>
+                        </div>
+                        <div style="text-align:right">
+                            <div class="status-badge" id="statusBadge">UNPAID</div>
+                            <p><b>DOCUMENT NO.</b><br><span id="invNo"></span></p>
+                            <p><span id="invDate"></span></p>
+                        </div>
+                    </div>
+                    <hr style="margin:15px 0; border:1px solid var(--primary)">
+                    <p><b>BILLED TO</b><br><span id="previewName"></span><br><span id="previewPhone"></span><br><span id="previewAddress"></span></p>
+                    
+                    <div id="invoiceTable"></div>
+
+                    <div class="bottom-section">
+                        <table class="payment-table">
+                            <thead>
+                                <tr><th colspan="2">PAYMENT INFORMATION</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><b>Bank</b></td><td>UBA</td></tr>
+                                <tr><td><b>Account No</b></td><td>2189015307</td></tr>
+                                <tr><td><b>Account Name</b></td><td>Ebere Favour Akaolisa</td></tr>
+                            </tbody>
+                        </table>
+
+                        <table class="totals-table" id="totalsTableHTML"></table>
+                    </div>
+
+                    <div class="words-container">
+                        <span><b>Amount in Words:</b> </span><span id="amountInWords" class="words-underlined">Zero Naira Only</span>
+                    </div>
+                </div>
+
+                <div class="invoice-footer">
+                    <span>Thank you for choosing Eby-Gold Superstores</span>
+                    <span>Created by: <span id="footerCreator" class="footer-created-by"></span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let items = [];
+let isSignUpMode = false;
+let autoSaveTimeout = null;
+
+// USER PRESETS
+const PRESET_USERS = {
+    "admin": "admin123",
+    "user1": "password123",
+    "user2": "password123"
+};
+
+if (!localStorage.getItem('eby_users_db')) {
+    localStorage.setItem('eby_users_db', JSON.stringify(PRESET_USERS));
+}
+
+function getUsersDB() {
+    return JSON.parse(localStorage.getItem('eby_users_db'));
+}
+
+function saveUsersDB(db) {
+    localStorage.setItem('eby_users_db', JSON.stringify(db));
+}
+
+function getActiveUser() {
+    return localStorage.getItem('eby_user') || 'system';
+}
+
+// REMEMBER ME / SHOW PASSWORD TOGGLES
+function togglePasswordVisibility() {
+    const pwdInput = document.getElementById('password');
+    pwdInput.type = document.getElementById('showPassword').checked ? 'text' : 'password';
+}
+
+function checkRememberedUser() {
+    const savedU = localStorage.getItem('remembered_u');
+    const savedP = localStorage.getItem('remembered_p');
+    if (savedU && savedP) {
+        document.getElementById('username').value = savedU;
+        document.getElementById('password').value = savedP;
+        document.getElementById('rememberMe').checked = true;
+    }
+}
+
+// TOGGLE SIGNUP OR LOGIN CARD MODE
+function toggleAuthMode() {
+    const errorDiv = document.getElementById('loginError');
+    errorDiv.style.display = 'none';
+    isSignUpMode = !isSignUpMode;
+    
+    if (isSignUpMode) {
+        document.getElementById('loginSubText').innerText = "Create a new user account";
+        document.getElementById('primaryLoginBtn').innerText = "Sign Up";
+        document.getElementById('authToggle').innerText = "Already have an account? Login";
+    } else {
+        document.getElementById('loginSubText').innerText = "Please sign in to continue";
+        document.getElementById('primaryLoginBtn').innerText = "Login";
+        document.getElementById('authToggle').innerText = "Don't have an account? Sign Up";
+    }
+}
+
+// TOGGLE LOCAL DATABASE SIDEBAR 
+function toggleDatabaseSidebar() {
+    const sidebar = document.getElementById('sidebarColumn');
+    const btn = document.getElementById('viewDbBtn');
+    if (sidebar.style.display === 'none') {
+        sidebar.style.display = 'block';
+        btn.innerText = "🗄️ Hide Database";
+    } else {
+        sidebar.style.display = 'none';
+        btn.innerText = "🗄️ View Database";
+    }
+}
+
+// IN WORDS ENGINE
+function numToWords(num) {
+    const ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+    const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+    
+    function convert(n) {
+        if (n < 20) return ones[n];
+        if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
+        if (n < 1000) return ones[Math.floor(n / 100)] + ' hundred' + (n % 100 !== 0 ? ' and ' + convert(n % 100) : '');
+        if (n < 1000000) return convert(Math.floor(n / 1000)) + ' thousand' + (n % 1000 !== 0 ? ' ' + convert(n % 1000) : '');
+        return convert(Math.floor(n / 1000000)) + ' million' + (n % 1000000 !== 0 ? ' ' + convert(n % 1000000) : '');
+    }
+
+    if (num === 0) return "Zero Naira Only";
+    
+    let parts = num.toString().split('.');
+    let wholeNum = parseInt(parts[0]);
+    let decimalNum = parts[1] ? parseInt(parts[1].substr(0, 2)) : 0;
+    
+    let result = convert(wholeNum) + " Naira";
+    if (decimalNum > 0) {
+        result += " and " + convert(decimalNum) + " Kobo";
+    }
+    return result + " Only";
+}
+
+// LOGIN ROUTER
+function login(){
+    let u = document.getElementById('username').value.trim().toLowerCase();
+    let p = document.getElementById('password').value.trim();
+    let err = document.getElementById('loginError');
+    let rememberCheck = document.getElementById('rememberMe').checked;
+
+    if (!u || !p) {
+        err.innerText = "All fields are required!";
+        err.style.display = 'block';
+        return;
+    }
+
+    let db = getUsersDB();
+
+    if (isSignUpMode) {
+        if (db[u]) {
+            err.innerText = "Username already exists!";
+            err.style.display = 'block';
+        } else {
+            db[u] = p;
+            saveUsersDB(db);
+            alert("Sign Up Successful! You can now log in.");
+            toggleAuthMode();
+            document.getElementById('username').value = u;
+            document.getElementById('password').value = p;
+        }
+    } else {
+        if (db[u] && db[u] === p) {
+            err.style.display = 'none';
+            localStorage.setItem('eby_user', u);
+            
+            if (rememberCheck) {
+                localStorage.setItem('remembered_u', u);
+                localStorage.setItem('remembered_p', p);
+            } else {
+                localStorage.removeItem('remembered_u');
+                localStorage.removeItem('remembered_p');
+            }
+            
+            document.getElementById('loginScreen').style.display='none';
+            document.getElementById('appScreen').style.display='block';
+            document.getElementById('loggedInAs').innerText = "Logged in as: " + u;
+            generateInvNo();
+            renderHistoryList();
+        } else {
+            err.innerText = "Invalid username or password!";
+            err.style.display = 'block';
+        }
+    }
+}
+
+// PASSWORD MODALS
+function openPwdModal() {
+    document.getElementById('oldPwd').value = '';
+    document.getElementById('newPwd').value = '';
+    document.getElementById('pwdError').style.display = 'none';
+    document.getElementById('pwdModal').style.display = 'flex';
+}
+function closePwdModal() { document.getElementById('pwdModal').style.display = 'none'; }
+function submitPasswordChange() {
+    let currentUser = localStorage.getItem('eby_user');
+    let oldP = document.getElementById('oldPwd').value.trim();
+    let newP = document.getElementById('newPwd').value.trim();
+    let err = document.getElementById('pwdError');
+
+    if (!oldP || !newP) {
+        err.innerText = "Both fields are required!";
+        err.style.display = "block";
+        return;
+    }
+
+    let db = getUsersDB();
+    if (db[currentUser] === oldP) {
+        db[currentUser] = newP;
+        saveUsersDB(db);
+        alert("Password updated successfully!");
+        closePwdModal();
+    } else {
+        err.innerText = "Incorrect current password!";
+        err.style.display = "block";
+    }
+}
+
+function logout(){ localStorage.removeItem('eby_user'); location.reload(); }
+
+// CLIENT & ITEM INDEX DATABASES (AUTOFILL ENGINE)
+function getClientDatabase() {
+    return JSON.parse(localStorage.getItem('eby_clients_db')) || [];
+}
+function saveToClientDatabase(client) {
+    let db = getClientDatabase();
+    if (!db.some(c => c.name.toLowerCase() === client.name.toLowerCase())) {
+        db.push(client);
+        localStorage.setItem('eby_clients_db', JSON.stringify(db));
+    }
+}
+function getItemDatabase() {
+    return JSON.parse(localStorage.getItem('eby_items_db')) || [];
+}
+function saveToItemDatabase(item) {
+    let db = getItemDatabase();
+    if (!db.some(it => it.name.toLowerCase() === item.name.toLowerCase())) {
+        db.push(item);
+        localStorage.setItem('eby_items_db', JSON.stringify(db));
+    }
+}
+
+// CLIENT AUTOCOMPLETE
+function showClientSuggestions(val) {
+    const list = document.getElementById('clientSuggestions');
+    list.innerHTML = '';
+    if (!val) { list.style.display = 'none'; return; }
+    
+    const db = getClientDatabase();
+    const filtered = db.filter(c => c.name.toLowerCase().includes(val.toLowerCase()));
+    
+    if (filtered.length === 0) { list.style.display = 'none'; return; }
+    
+    filtered.forEach(c => {
+        let div = document.createElement('div');
+        div.innerText = `${c.name} (${c.phone})`;
+        div.onclick = () => {
+            document.getElementById('billedTo').value = c.name;
+            document.getElementById('phone').value = c.phone;
+            document.getElementById('address').value = c.address;
+            list.style.display = 'none';
+            updatePreview();
+            triggerAutoSave();
+        };
+        list.appendChild(div);
+    });
+    list.style.display = 'block';
+}
+
+// ITEM AUTOCOMPLETE
+function showItemSuggestions(val) {
+    const list = document.getElementById('itemSuggestions');
+    list.innerHTML = '';
+    if (!val) { list.style.display = 'none'; return; }
+    
+    const db = getItemDatabase();
+    const filtered = db.filter(it => it.name.toLowerCase().includes(val.toLowerCase()));
+    
+    if (filtered.length === 0) { list.style.display = 'none'; return; }
+    
+    filtered.forEach(it => {
+        let div = document.createElement('div');
+        div.innerText = `${it.name} - NGN ${it.rate.toLocaleString()}`;
+        div.onclick = () => {
+            document.getElementById('itemName').value = it.name;
+            document.getElementById('rate').value = it.rate;
+            list.style.display = 'none';
+        };
+        list.appendChild(div);
+    });
+    list.style.display = 'block';
+}
+
+// CLOSE SUGGESTIONS WHEN CLICKED OUTSIDE
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.autocomplete-wrapper')) {
+        document.getElementById('clientSuggestions').style.display = 'none';
+        document.getElementById('itemSuggestions').style.display = 'none';
+    }
+});
+
+// DOCUMENT NO ENGINE
+function generateInvNo(){
+    let docType = document.getElementById('docType').value;
+    let prefix = "EGS-INV-";
+    if (docType === "Receipt") prefix = "EGS-REC-";
+    if (docType === "Quotation") prefix = "EGS-QUO-";
+    
+    let no = '#' + prefix + Math.floor(100000 + Math.random() * 900000);
+    document.getElementById('invNo').innerText = no;
+    document.getElementById('invDate').innerText = new Date().toLocaleDateString('en-GB');
+}
+
+// SHORTCUT BUTTON FOR RECEIPT CONVERSION
+function convertToReceipt() {
+    document.getElementById('docType').value = 'Receipt';
+    generateInvNo();
+    updatePreview();
+    previewInvoice();
+    triggerAutoSave();
+}
+
+// WORKSTATION DATA LIST BUILDERS
+function addItem(){
+    let name = document.getElementById('itemName').value;
+    let qty = parseFloat(document.getElementById('qty').value);
+    let rate = parseFloat(document.getElementById('rate').value);
+    if(!name || qty <= 0 || rate < 0) return alert('Please enter valid item details.');
+    
+    // Auto-index item database
+    saveToItemDatabase({ name, rate });
+
+    items.push({name, qty, rate, total: qty*rate});
+    renderTable();
+    document.getElementById('itemName').value=''; document.getElementById('qty').value=1; document.getElementById('rate').value=0;
+    triggerAutoSave();
+}
+function deleteItem(i){ 
+    items.splice(i,1); 
+    renderTable(); 
+    triggerAutoSave();
+}
+
+function renderTable(){
+    let tbody = document.querySelector('#itemsTable tbody');
+    tbody.innerHTML = '';
+    items.forEach((it,i)=>{
+        tbody.innerHTML += `<tr>
+            <td>${i+1}</td><td>${it.name}</td><td>${it.qty}</td>
+            <td>NGN ${it.rate.toLocaleString()}</td><td>NGN ${it.total.toLocaleString()}</td>
+            <td class="no-print"><button class="action-btn" onclick="deleteItem(${i})">X</button></td>
+        </tr>`
+    });
+    updatePreview();
+}
+
+// LIVE RENDERPREVIEW ENGINE
+function updatePreview(){
+    let docTypeVal = document.getElementById('docType').value;
+    document.getElementById('previewName').innerText = document.getElementById('billedTo').value;
+    document.getElementById('previewPhone').innerText = document.getElementById('phone').value;
+    document.getElementById('previewAddress').innerText = document.getElementById('address').value;
+    document.getElementById('previewDocType').innerText = docTypeVal;
+
+    const badge = document.getElementById('statusBadge');
+    if (docTypeVal === "Receipt") {
+        badge.innerText = "PAID";
+        badge.style.background = "#d1fae5";
+        badge.style.color = "#065f46";
+    } else {
+        badge.innerText = "UNPAID";
+        badge.style.background = "#fef3c7";
+        badge.style.color = "#92400e";
+    }
+
+    let tableHTML = '<table class="items-table"><thead><tr><th>S/N</th><th>Items</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead><tbody>';
+    items.forEach((it,i)=>{
+        tableHTML += `<tr><td>${i+1}</td><td>${it.name}</td><td>${it.qty}</td><td>NGN ${it.rate.toLocaleString()}</td><td>NGN ${it.total.toLocaleString()}</td></tr>`
+    });
+    tableHTML += '</tbody></table>';
+    document.getElementById('invoiceTable').innerHTML = tableHTML;
+
+    let subtotal = items.reduce((a,b)=>a+b.total,0);
+    let vat = document.getElementById('vat').checked? subtotal*0.075 : 0;
+    let total = subtotal + vat;
+    
+    let totalsTableHTML = `
+        <tbody>
+            <tr><td>Subtotal</td><td>NGN ${subtotal.toLocaleString()}</td></tr>
+            ${vat ? `<tr><td>VAT 7.5%</td><td>NGN ${vat.toLocaleString()}</td></tr>` : ''}
+            <tr class="grand-total"><td>Total</td><td>NGN ${total.toLocaleString()}</td></tr>
+        </tbody>
+    `;
+    document.getElementById('totalsTableHTML').innerHTML = totalsTableHTML;
+    document.getElementById('amountInWords').innerText = numToWords(total);
+    document.getElementById('footerCreator').innerText = getActiveUser();
+}
+
+// BACKGROUND AUTO-SAVE SEQUENCER
+function triggerAutoSave() {
+    clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = setTimeout(() => {
+        saveInvoice(true);
+    }, 400);
+}
+
+// HISTORICAL RECORD & LOCAL DATABASE STORAGE
+function saveInvoice(isSilent = false){
+    const clientName = document.getElementById('billedTo').value;
+    const clientPhone = document.getElementById('phone').value;
+    const clientAddress = document.getElementById('address').value;
+    const docNo = document.getElementById('invNo').innerText;
+
+    if (!clientName) {
+        if(!isSilent) alert("Customer Name is required to save an invoice.");
+        return;
+    }
+
+    // Index client into database
+    saveToClientDatabase({ name: clientName, phone: clientPhone, address: clientAddress });
+
+    let invoicePayload = {
+        customer: {name: clientName, phone: clientPhone, address: clientAddress},
+        docType: document.getElementById('docType').value, 
+        vat: document.getElementById('vat').checked, 
+        items: items, 
+        invNo: docNo,
+        date: document.getElementById('invDate').innerText,
+        creator: getActiveUser()
+    };
+    
+    let history = JSON.parse(localStorage.getItem('eby_invoice_history')) || [];
+    history = history.filter(inv => inv.invNo !== docNo);
+    history.unshift(invoicePayload);
+    localStorage.setItem('eby_invoice_history', JSON.stringify(history));
+
+    if(!isSilent) alert('Document Successfully Saved to Database! ID: ' + docNo);
+    renderHistoryList();
+}
+
+// RENDER HISTORIC DATABASE ENTRIES
+function renderHistoryList() {
+    const historyPanel = document.getElementById('historyPanel');
+    historyPanel.innerHTML = '';
+    const history = JSON.parse(localStorage.getItem('eby_invoice_history')) || [];
+
+    if (history.length === 0) {
+        historyPanel.innerHTML = '<p style="font-size:12px; color:#94a3b8; text-align:center;">No saved documents found.</p>';
+        return;
+    }
+
+    history.forEach(inv => {
+        let itemDiv = document.createElement('div');
+        itemDiv.className = 'history-item';
+        itemDiv.onclick = () => loadInvoiceFromHistory(inv.invNo);
+        
+        let subtotal = inv.items.reduce((a,b)=>a+b.total,0);
+        let grandTotal = inv.vat ? subtotal * 1.075 : subtotal;
+
+        itemDiv.innerHTML = `
+            <div class="history-item-header">
+                <span>${inv.invNo}</span>
+                <span>${inv.docType}</span>
+            </div>
+            <div class="history-item-body">
+                <p><b>Client:</b> ${inv.customer.name}</p>
+                <p><b>Total:</b> NGN ${grandTotal.toLocaleString()}</p>
+                <p><b>Date:</b> ${inv.date} | <b>By:</b> ${inv.creator}</p>
+            </div>
+        `;
+        historyPanel.appendChild(itemDiv);
+    });
+}
+
+// RELOAD INVOICE STATE
+function loadInvoiceFromHistory(invNo) {
+    const history = JSON.parse(localStorage.getItem('eby_invoice_history')) || [];
+    const target = history.find(inv => inv.invNo === invNo);
+    if (!target) return;
+
+    document.getElementById('billedTo').value = target.customer.name;
+    document.getElementById('phone').value = target.customer.phone;
+    document.getElementById('address').value = target.customer.address;
+    document.getElementById('docType').value = target.docType;
+    document.getElementById('vat').checked = target.vat;
+    document.getElementById('invNo').innerText = target.invNo;
+    document.getElementById('invDate').innerText = target.date;
+    
+    items = target.items;
+    renderTable();
+    previewInvoice();
+}
+
+function previewInvoice(){
+    updatePreview();
+    document.getElementById('previewCard').style.display='block';
+    document.getElementById('previewCard').scrollIntoView({behavior:'smooth'});
+}
+
+// LOGO PREVIEW ASSET RECOVERY
+function uploadLogo(){
+    let input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = e => {
+        let reader = new FileReader();
+        reader.onload = () => {
+            document.getElementById('logoPreview').src = reader.result;
+            document.getElementById('logoPreview').style.display = 'block';
+            document.getElementById('watermarkImg').src = reader.result;
+            document.getElementById('brandBgLogo').src = reader.result;
+            document.getElementById('brandBgLogo').style.display = 'block';
+            document.getElementById('loginLogo').src = reader.result;
+            document.querySelector('.logo-box span').style.display='none';
+            localStorage.setItem('eby_logo', reader.result);
+        }
+        reader.readAsDataURL(e.target.files[0]);
+    }
+    input.click();
+}
+
+// RE-RENDER SAVED CONFIGURATION AT SESSION START
+if(localStorage.getItem('eby_logo')){
+    document.getElementById('logoPreview').src = localStorage.getItem('eby_logo');
+    document.getElementById('watermarkImg').src = localStorage.getItem('eby_logo');
+    document.getElementById('brandBgLogo').src = localStorage.getItem('eby_logo');
+    document.getElementById('brandBgLogo').style.display = 'block';
+    document.getElementById('loginLogo').src = localStorage.getItem('eby_logo');
+    document.getElementById('logoPreview').style.display='block';
+    document.querySelector('.logo-box span').style.display='none';
+}
+
+// DIRECT PDF GENERATION ENGINE
+function downloadPDF(){
+    try {
+        updatePreview();
+        saveInvoice(true); // Save one final time cleanly right before printing payload
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const logoData = localStorage.getItem('eby_logo');
+        const activeUser = getActiveUser();
+        
+        // Watermark Page Logo
+        if(logoData) {
+            doc.saveGraphicsState();
+            if (typeof doc.setGState === "function") {
+                try {
+                    doc.setGState(new doc.GState({ opacity: 0.18 }));
+                } catch(e) {
+                    doc.setFillColor(255, 255, 255);
+                }
+            }
+            doc.addImage(logoData, 'PNG', 10, 35, 190, 190);
+            doc.restoreGraphicsState();
+        }
+        
+        // Small Header Logo
+        if(logoData) {
+            doc.saveGraphicsState();
+            if (typeof doc.setGState === "function") {
+                try {
+                    doc.setGState(new doc.GState({ opacity: 0.25 }));
+                } catch(e) {}
+            }
+            doc.addImage(logoData, 'PNG', 15, 12, 38, 38);
+            doc.restoreGraphicsState();
+        }
+        
+        // Header Text
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        doc.setTextColor(10, 37, 64);
+        doc.text("EBY-GOLD SUPERSTORES", 14, 20);
+        
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(80, 80, 80);
+        doc.text("19, Jejelaiye Street, Surulere, Lagos.", 14, 26);
+        doc.text("Tel: 07058016395", 14, 31);
+        doc.text("Email: ebereakaolisa5@gmail.com", 14, 36);
+        
+        // Document Meta Details
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(10, 37, 64);
+        doc.text(document.getElementById('docType').value.toUpperCase(), 196, 20, { align: "right" });
+        
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
+        doc.text("DOCUMENT NO: " + document.getElementById('invNo').innerText, 196, 28, { align: "right" });
+        doc.text("DATE: " + document.getElementById('invDate').innerText, 196, 34, { align: "right" });
+        
+        doc.setDrawColor(10, 37, 64);
+        doc.setLineWidth(0.5);
+        doc.line(14, 42, 196, 42);
+        
+        // Client details
+        doc.setFont("helvetica", "bold");
+        doc.text("BILLED TO:", 14, 50);
+        doc.setFont("helvetica", "normal");
+        doc.text(document.getElementById('billedTo').value || "N/A", 14, 56);
+        doc.text(document.getElementById('phone').value || "N/A", 14, 62);
+        doc.text(document.getElementById('address').value || "N/A", 14, 68);
+        
+        const tableData = items.map((it, i) => [
+            i + 1,
+            it.name,
+            it.qty,
+            "NGN " + it.rate.toLocaleString(),
+            "NGN " + it.total.toLocaleString()
+        ]);
+
+        doc.autoTable({
+            startY: 75,
+            head: [['S/N', 'Items', 'Qty', 'Rate', 'Total']],
+            body: tableData,
+            headStyles: { fillColor: [10, 37, 64], textColor: [255, 255, 255] },
+            theme: 'grid',
+            columnStyles: {
+                0: { cellWidth: 15, halign: 'center' }
+            }
+        });
+        
+        let finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? (doc.lastAutoTable.finalY + 12) : 95;
+        
+        let subtotal = items.reduce((a, b) => a + b.total, 0);
+        let vat = document.getElementById('vat').checked ? subtotal * 0.075 : 0;
+        let total = subtotal + vat;
+
+        let totalsBody = [['Subtotal', "NGN " + subtotal.toLocaleString()]];
+        if(vat > 0) {
+            totalsBody.push(['VAT 7.5%', "NGN " + vat.toLocaleString()]);
+        }
+        totalsBody.push(['Total', "NGN " + total.toLocaleString()]);
+
+        // Totals Grid
+        doc.autoTable({
+            startY: finalY,
+            margin: { left: 130 },
+            tableWidth: 66,
+            body: totalsBody,
+            theme: 'grid',
+            styles: { fontSize: 9, halign: 'right' },
+            columnStyles: {
+                0: { fontStyle: 'bold', fillColor: [248, 250, 252], halign: 'left' }
+            },
+            didParseCell: function (data) {
+                if (data.row.index === totalsBody.length - 1) {
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.textColor = [10, 37, 64];
+                    if (data.column.index === 1) {
+                        data.cell.styles.fontSize = 11;
+                    }
+                }
+            }
+        });
+
+        // Payment Metadata Table
+        doc.autoTable({
+            startY: finalY,
+            margin: { left: 14 },
+            tableWidth: 85,
+            head: [['PAYMENT INFORMATION', '']],
+            body: [
+                ['Bank', 'UBA'],
+                ['Account No', '2189015307'],
+                ['Account Name', 'Ebere Favour Akaolisa']
+            ],
+            headStyles: { fillColor: [10, 37, 64], textColor: [255, 255, 255], fontStyle: 'bold' },
+            theme: 'grid',
+            styles: { fontSize: 8 }
+        });
+
+        let tablesY = doc.lastAutoTable.finalY || finalY;
+        let wordY = tablesY + 12;
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(10, 37, 64);
+        
+        let wordsLabel = "Amount in Words: ";
+        let wordsValue = numToWords(total);
+        
+        let splitWords = doc.splitTextToSize(wordsLabel + wordsValue, 182);
+        doc.text(splitWords, 14, wordY);
+        
+        let totalLinesHeight = splitWords.length * 5; 
+        doc.setDrawColor(10, 37, 64);
+        doc.setLineWidth(0.5);
+        doc.line(14, wordY + totalLinesHeight - 2, 196, wordY + totalLinesHeight - 2);
+
+        // FOOTNOTE ALIGNMENT
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text("Thank you for choosing Eby-Gold Superstores", 14, 282);
+        
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(10, 37, 64);
+        doc.text("Created by: " + activeUser.toUpperCase(), 196, 282, { align: "right" });
+        
+        let filename = (document.getElementById('invNo').innerText || 'invoice').replace('#','');
+        doc.save(filename + '.pdf');
+    } catch(err) {
+        console.error("Error creating PDF document: ", err);
+        alert("Error: " + err.message);
+    }
+}
+
+function printInvoice(){
+    previewInvoice();
+    setTimeout(()=>{ window.print(); }, 500);
+}
+
+// SYSTEM LOAD ROUTINE
+window.onload = () => {
+    checkRememberedUser();
+    if(localStorage.getItem('eby_user')){
+        document.getElementById('loginScreen').style.display='none';
+        document.getElementById('appScreen').style.display='block';
+        document.getElementById('loggedInAs').innerText = "Logged in as: " + localStorage.getItem('eby_user');
+        generateInvNo();
+        renderHistoryList();
+    }
+}
+
+document.getElementById('docType').addEventListener('change', () => {
+    generateInvNo();
+    updatePreview();
+    triggerAutoSave();
+});
+document.getElementById('vat').addEventListener('change', () => {
+    updatePreview();
+    triggerAutoSave();
+});
+document.querySelectorAll('input,select').forEach(el => {
+    el.addEventListener('input', () => {
+        updatePreview();
+        triggerAutoSave();
+    });
+});
+</script>
+</body>
+                            </html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eby-Gold Superstores | Invoice App</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root {
+    --primary: #0a2540;
+    --gold: #d4af37;
+    --bg: #f4f7fa;
+    --card: #ffffff;
+    --text: #1a202c;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+body { background: var(--bg); color: var(--text); }
+
 /* ...everything same until .logo-box... */
 
 .logo-box { width: 130px; height: 130px; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 8px; overflow: hidden; font-weight: 800; }
