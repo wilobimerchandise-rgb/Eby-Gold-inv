@@ -46,3 +46,16 @@ self.addEventListener('fetch', (e) => {
       })
   );
 });
+// Add to your existing CACHE_ASSETS list
+const CACHE_ASSETS = [
+  // ... existing assets
+  'inventory-module.js',
+  'inventory-integration.js'
+];
+
+// Add inventory API cache strategy
+const INVENTORY_API_PATTERNS = [
+  '/api/products',
+  '/api/inventory',
+  '/api/reports'
+];
