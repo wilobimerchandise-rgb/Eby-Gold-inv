@@ -45,3 +45,14 @@
     }
   ]
 }
+{
+  "manifest_version": 3,
+  "name": "Eby-Gold Inventory Manager",
+  "version": "1.0",
+  "content_scripts": [
+    {
+      "matches": ["*://your-app-url.com/*"],
+      "js": ["inventory-module.js", "inventory-integration.js"]
+    }
+  ]
+}
