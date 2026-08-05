@@ -1205,3 +1205,45 @@ function downloadPDF(){
 <script src="inventory-module.js"></script>
 <script src="inventory-integration.js"></script>
 <script src="inventory-enhancer.js"></script>
+/* Mobile-friendly inventory integration */
+@media (max-width: 768px) {
+    .item-row {
+        display: grid;
+        grid-template-columns: 30px 1fr 60px 80px 80px 30px;
+        gap: 4px;
+        padding: 4px 0;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .item-row td {
+        padding: 2px !important;
+    }
+    
+    .item-row input {
+        width: 100% !important;
+        padding: 4px !important;
+        font-size: 14px !important;
+    }
+    
+    .item-row .item-name {
+        width: 100% !important;
+    }
+    
+    .autocomplete-list {
+        max-height: 150px !important;
+        font-size: 14px !important;
+    }
+    
+    #invoice-summary {
+        font-size: 14px;
+        padding: 10px !important;
+    }
+    
+    #customer-db-integration > div {
+        flex-direction: column !important;
+    }
+    
+    #customer-db-integration input {
+        font-size: 16px !important; /* Prevents zoom on iOS */
+    }
+}
