@@ -27,3 +27,21 @@
     }
   ]
 }
+{
+  "shortcuts": [
+    {
+      "name": "Inventory",
+      "short_name": "Inventory",
+      "description": "Manage products and stock",
+      "url": "/?view=inventory",
+      "icons": [{ "src": "/icons/inventory-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Add Product",
+      "short_name": "Add Product",
+      "description": "Add a new product",
+      "url": "/?view=inventory&action=add",
+      "icons": [{ "src": "/icons/add-product-icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
