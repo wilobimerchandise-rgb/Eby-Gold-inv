@@ -1020,4 +1020,245 @@
 
         showAddStockForm(productId) {
             this.showModal(`
-                <h3>📦 Restock Product</h
+                <h3>📦 Restock Product</h3>
+                <form id="restock-form">
+                    <div class="form-group">
+                        <label>Quantity to Add</label>
+                        <input type="number" id="restock-qty" required min="1" placeholder="Enter quantity" />
+                    </div>
+                    <div class="form-group">
+                        <label>Note (optional)</label>
+                        <input type="text" id="restock-note" placeholder="e.g., New shipment received" />
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="window.__inventoryUI.closeModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Add Stock</button>
+                    </div>
+                </form>
+            `);
+
+            document.getElementById('restock-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const quantity = parseInt(document.getElementById('restock-qty').value);
+                const note = document.getElementById('restock-note').value.trim();
+
+                try {
+                    await this.manager.updateStock(productId, quantity, 'purchase', note || 'Manual restock');
+                    this.closeModal();
+                    this.loadView('lowstock');
+                    this.showToast('✅ Stock updated successfully!', 'success');
+                } catch (error) {
+                    this.showToast('❌ ' + error.message, 'danger');
+                }
+            });
+        }
+
+        showModal(html) {
+            // Remove existing modal
+            this.closeModal();
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal-content">
+                    ${html}
+                </div>
+            `;
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) this.closeModal();
+            });
+            document.body.appendChild(overlay);
+            this._modalOverlay = overlay;
+        }
+
+        closeModal() {
+            if (this._modalOverlay) {
+                this._modalOverlay.remove();
+                this._modalOverlay = null;
+            }
+        }
+
+        showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                padding: 12px 24px;
+                background: ${type === 'success' ? '#28a745' : '#dc3545'};
+                color: white;
+                border-radius: 8px;
+                z-index: 10000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                animation: slideIn 0.3s ease;
+                max-width: 400px;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- Edit/Delete ---
+        async editProduct(productId) {
+            const product = await this.manager.db.get('products', productId);
+            if (!product) return;
+
+            const inv = await this.manager.db.query('inventory', 'productId', productId);
+            const stock = inv.length > 0 ? inv[0].quantity : 0;
+
+            this.showModal(`
+                <h3>✏️ Edit Product</h3>
+                <form id="edit-product-form">
+                    <div class="form-group">
+                        <label>SKU *</label>
+                        <input type="text" id="edit-sku" value="${product.sku}" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Product Name *</label>
+                        <input type="text" id="edit-name" value="${product.name}" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <input type="text" id="edit-category" value="${product.category || ''}" />
+                    </div>
+                    <div class="form-group">
+                        <label>Unit Price ($)</label>
+                        <input type="number" id="edit-price" step="0.01" value="${product.unitPrice || 0}" />
+                    </div>
+                    <div class="form-group">
+                        <label>Cost Price ($)</label>
+                        <input type="number" id="edit-cost" step="0.01" value="${product.costPrice || 0}" />
+                    </div>
+                    <div class="form-group">
+                        <label>Current Stock</label>
+                        <input type="number" id="edit-stock" value="${stock}" disabled style="background:#f0f0f0;" />
+                        <small style="color:#666;">Use "Restock" to change inventory</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Barcode</label>
+                        <input type="text" id="edit-barcode" value="${product.barcode || ''}" />
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="window.__inventoryUI.closeModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Update Product</button>
+                    </div>
+                </form>
+            `);
+
+            document.getElementById('edit-product-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const updates = {
+                    sku: document.getElementById('edit-sku').value.trim(),
+                    name: document.getElementById('edit-name').value.trim(),
+                    category: document.getElementById('edit-category').value.trim(),
+                    unitPrice: parseFloat(document.getElementById('edit-price').value) || 0,
+                    costPrice: parseFloat(document.getElementById('edit-cost').value) || 0,
+                    barcode: document.getElementById('edit-barcode').value.trim(),
+                };
+
+                try {
+                    await this.manager.updateProduct(productId, updates);
+                    this.closeModal();
+                    this.loadView('products');
+                    this.showToast('✅ Product updated successfully!', 'success');
+                } catch (error) {
+                    this.showToast('❌ ' + error.message, 'danger');
+                }
+            });
+        }
+
+        async deleteProduct(productId) {
+            if (!confirm('Are you sure you want to delete this product? This cannot be undone.')) return;
+            
+            try {
+                await this.manager.deleteProduct(productId);
+                this.loadView('products');
+                this.showToast('✅ Product deleted successfully', 'success');
+            } catch (error) {
+                this.showToast('❌ ' + error.message, 'danger');
+            }
+        }
+    }
+
+    // ============================================
+    // UTILITY FUNCTIONS
+    // ============================================
+    function debounce(fn, delay) {
+        let timeout;
+        return function(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => fn.apply(this, args), delay);
+        };
+    }
+
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+    async function initInventoryModule() {
+        try {
+            const db = new InventoryDB();
+            await db.init();
+            
+            const manager = new InventoryManager(db);
+            const ui = new InventoryUI(manager);
+            
+            // Store globally for integration with other scripts
+            window.__inventory = {
+                db,
+                manager,
+                ui
+            };
+
+            // Inject UI after a small delay to ensure page is loaded
+            setTimeout(() => ui.render(), 500);
+
+            // --- Integration Hooks for existing invoice app ---
+            // Listen for custom events from your invoice app
+            document.addEventListener('invoice-finalized', async (event) => {
+                const invoiceData = event.detail;
+                if (invoiceData && invoiceData.items) {
+                    try {
+                        const results = await manager.deductStockForInvoice(invoiceData.items);
+                        console.log('📊 Stock deduction results:', results);
+                        // Show notification
+                        ui.showToast('✅ Inventory updated from invoice', 'success');
+                    } catch (error) {
+                        console.error('Stock deduction failed:', error);
+                        ui.showToast('⚠️ Stock deduction failed: ' + error.message, 'danger');
+                    }
+                }
+            });
+
+            // Listen for product selection from invoice form
+            document.addEventListener('product-selected', async (event) => {
+                const productId = event.detail.productId;
+                if (productId) {
+                    const product = await manager.getProductWithStock(productId);
+                    // Dispatch event back to invoice app with full product details
+                    document.dispatchEvent(new CustomEvent('inventory-product-data', {
+                        detail: { product }
+                    }));
+                }
+            });
+
+            console.log('✅ Eby-Gold Inventory Module initialized successfully!');
+            console.log('📚 Available APIs: window.__inventory');
+            
+        } catch (error) {
+            console.error('❌ Inventory module initialization failed:', error);
+        }
+    }
+
+    // Auto-init when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initInventoryModule);
+    } else {
+        initInventoryModule();
+    }
+
+})();
