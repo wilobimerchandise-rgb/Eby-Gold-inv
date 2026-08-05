@@ -1262,3 +1262,12 @@
     }
 
 })();
+// In the onupgradeneeded event handler
+if (!db.objectStoreNames.contains('customers')) {
+    const customerStore = db.createObjectStore('customers', { 
+        keyPath: 'id', 
+        autoIncrement: true 
+    });
+    customerStore.createIndex('name', 'name', { unique: false });
+    customerStore.createIndex('phone', 'phone');
+}
