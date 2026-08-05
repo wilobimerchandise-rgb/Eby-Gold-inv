@@ -1,4 +1,42 @@
 // ============================================
+// CURRENCY CONFIGURATION
+// ============================================
+const CURRENCY_CONFIG = {
+    // Base currency for inventory (what products are priced in)
+    baseCurrency: 'USD',
+    
+    // Display currency for invoices (what customers see)
+    displayCurrency: 'NGN',
+    
+    // Exchange rate (NGN per 1 USD) - Update this regularly!
+    exchangeRate: 1600, // As of August 2026
+    
+    // Currency symbols
+    symbols: {
+        USD: '$',
+        NGN: '₦'
+    }
+};
+
+// Helper function to format currency
+function formatCurrency(amount, currency = CURRENCY_CONFIG.displayCurrency) {
+    const symbol = CURRENCY_CONFIG.symbols[currency] || currency;
+    const formatted = amount.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+    return `${symbol}${formatted}`;
+}
+
+// Convert USD to NGN
+function usdToNgn(usdAmount) {
+    return usdAmount * CURRENCY_CONFIG.exchangeRate;
+}
+
+// Convert NGN to USD
+function ngnToUsd(ngnAmount) {
+    return ngnAmount / CURRENCY_CONFIG.exchangeRate;
+}// ============================================
 // EBY-GOLD INVENTORY ENHANCER
 // Drop-in module - No code changes needed!
 // ============================================
