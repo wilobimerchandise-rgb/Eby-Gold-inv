@@ -979,3 +979,56 @@ function ngnToUsd(ngnAmount) {
     }
 
 })();
+// Add to the render method - add a new tab
+// In the nav-tabs section:
+<div class="nav-tabs">
+    <button class="active" data-view="products">Products</button>
+    <button data-view="lowstock">Low Stock</button>
+    <button data-view="valuation">Valuation</button>
+    <button data-view="movements">Movements</button>
+    <button data-view="customers">Customers</button> <!-- NEW -->
+</div>
+
+// Add new render method
+async renderCustomers(container) {
+    const customers = await this.manager.getCustomers();
+    
+    if (customers.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-info">
+                No customers saved yet. Add customers from the invoice form.
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <h3>👥 Customer Database (${customers.length})</h3>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Phone</th>
+                        <th>Address</th>
+                        <th>Added</th>
+                    </tr>
+                </thead>
+                <tbody>
+            </tbody></table>
+        </div>
+    `;
+    container.innerHTML = html;
+    
+    const tbody = container.querySelector('tbody');
+    customers.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${c.name}</strong></td>
+            <td>${c.phone || '-'}</td>
+            <td>${c.address || '-'}</td>
+            <td>${new Date(c.createdAt).toLocaleDateString()}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+    }
