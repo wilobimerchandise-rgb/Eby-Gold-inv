@@ -1,0 +1,220 @@
+// ============================================
+// INVENTORY-INVOICE INTEGRATION HELPER
+// Drop this in your invoice page/component
+// ============================================
+
+(function() {
+    'use strict';
+
+    // Wait for inventory module to be ready
+    function waitForInventory(retries = 10) {
+        return new Promise((resolve, reject) => {
+            if (window.__inventory && window.__inventory.manager) {
+                resolve(window.__inventory);
+                return;
+            }
+
+            let attempts = 0;
+            const interval = setInterval(() => {
+                attempts++;
+                if (window.__inventory && window.__inventory.manager) {
+                    clearInterval(interval);
+                    resolve(window.__inventory);
+                } else if (attempts >= retries) {
+                    clearInterval(interval);
+                    reject(new Error('Inventory module not loaded'));
+                }
+            }, 500);
+        });
+    }
+
+    // --- Helper to add product selection to invoice forms ---
+    async function enhanceInvoiceForm() {
+        try {
+            const inv = await waitForInventory();
+            const manager = inv.manager;
+            
+            // Find your invoice item row template or container
+            const invoiceContainer = document.querySelector('#invoice-items') || 
+                                    document.querySelector('.invoice-items') ||
+                                    document.querySelector('[data-invoice-items]');
+
+            if (!invoiceContainer) {
+                console.warn('⚠️ Invoice container not found. Make sure your invoice form has a container with id="invoice-items"');
+                return;
+            }
+
+            // Add a "Search Product" button/input to each row
+            // This is a generic example - adapt to your UI
+            const rows = invoiceContainer.querySelectorAll('.invoice-row, .item-row, tr');
+            rows.forEach((row, index) => {
+                // Check if already enhanced
+                if (row.dataset.inventoryEnhanced) return;
+                
+                const productInput = row.querySelector('input[name*="product"], select[name*="product"]');
+                if (productInput) {
+                    // Add autocomplete
+                    productInput.setAttribute('autocomplete', 'off');
+                    
+                    // Create datalist for suggestions
+                    const datalistId = `product-suggestions-${index}`;
+                    const datalist = document.createElement('datalist');
+                    datalist.id = datalistId;
+                    productInput.setAttribute('list', datalistId);
+                    
+                    // Populate with products from inventory
+                    manager.getAllProducts().then(products => {
+                        products.forEach(p => {
+                            const option = document.createElement('option');
+                            option.value = p.name;
+                            option.dataset.productId = p.id;
+                            option.dataset.sku = p.sku;
+                            option.dataset.price = p.unitPrice || 0;
+                            option.dataset.stock = p.stock || 0;
+                            datalist.appendChild(option);
+                        });
+                    });
+
+                    // Insert datalist after input
+                    productInput.parentNode.insertBefore(datalist, productInput.nextSibling);
+
+                    // Handle selection
+                    productInput.addEventListener('input', async function(e) {
+                        const value = this.value;
+                        if (value.length > 1) {
+                            const products = await manager.searchProducts(value);
+                            // Update datalist options based on search
+                            datalist.innerHTML = '';
+                            products.forEach(p => {
+                                const option = document.createElement('option');
+                                option.value = p.name;
+                                option.dataset.productId = p.id;
+                                option.dataset.sku = p.sku;
+                                option.dataset.price = p.unitPrice || 0;
+                                option.dataset.stock = p.stock || 0;
+                                datalist.appendChild(option);
+                            });
+                        }
+                    });
+
+                    // On change, fetch full product data
+                    productInput.addEventListener('change', async function(e) {
+                        const selectedName = this.value;
+                        const products = await manager.searchProducts(selectedName);
+                        const matched = products.find(p => p.name === selectedName);
+                        if (matched) {
+                            // Dispatch event for your invoice app to handle
+                            document.dispatchEvent(new CustomEvent('product-selected', {
+                                detail: { productId: matched.id }
+                            }));
+
+                            // Auto-fill price if you have a price field
+                            const priceInput = row.querySelector('input[name*="price"], input[name*="rate"]');
+                            if (priceInput && matched.unitPrice) {
+                                priceInput.value = matched.unitPrice;
+                            }
+
+                            // Show available stock
+                            const stockDisplay = row.querySelector('.stock-display');
+                            if (stockDisplay) {
+                                stockDisplay.textContent = `Stock: ${matched.stock || 0}`;
+                            }
+                        }
+                    });
+
+                    row.dataset.inventoryEnhanced = 'true';
+                }
+            });
+
+            console.log('✅ Invoice form enhanced with inventory integration');
+
+        } catch (error) {
+            console.error('❌ Failed to enhance invoice form:', error);
+        }
+    }
+
+    // --- Function to validate invoice against inventory ---
+    async function validateInvoiceItems(items) {
+        try {
+            const inv = await waitForInventory();
+            const manager = inv.manager;
+            const errors = [];
+
+            for (const item of items) {
+                const product = await manager.getProductWithStock(item.productId);
+                if (!product) {
+                    errors.push(`Product ID ${item.productId} not found`);
+                    continue;
+                }
+                
+                const available = product.available || product.stock || 0;
+                if (item.quantity > available) {
+                    errors.push(`Insufficient stock for "${product.name}". Available: ${available}, Requested: ${item.quantity}`);
+                }
+            }
+
+            return { valid: errors.length === 0, errors };
+        } catch (error) {
+            return { valid: false, errors: [error.message] };
+        }
+    }
+
+    // --- Hook into your invoice submission ---
+    // Override or enhance your existing invoice submit function
+    async function handleInvoiceSubmit(invoiceData) {
+        // Validate first
+        const validation = await validateInvoiceItems(invoiceData.items);
+        if (!validation.valid) {
+            alert('Stock validation failed:\n' + validation.errors.join('\n'));
+            return false;
+        }
+
+        // If valid, proceed with your normal invoice creation
+        // After successful creation, dispatch event to update inventory
+        try {
+            // ... your existing invoice creation logic ...
+            
+            // After invoice is saved, dispatch this event
+            document.dispatchEvent(new CustomEvent('invoice-finalized', {
+                detail: { 
+                    invoiceId: invoiceData.id || 'new',
+                    items: invoiceData.items 
+                }
+            }));
+
+            return true;
+        } catch (error) {
+            console.error('Invoice creation failed:', error);
+            return false;
+        }
+    }
+
+    // --- Export helpers ---
+    window.__inventoryIntegration = {
+        waitForInventory,
+        enhanceInvoiceForm,
+        validateInvoiceItems,
+        handleInvoiceSubmit,
+        getProduct: async (productId) => {
+            const inv = await waitForInventory();
+            return inv.manager.getProductWithStock(productId);
+        },
+        searchProducts: async (query) => {
+            const inv = await waitForInventory();
+            return inv.manager.searchProducts(query);
+        },
+        getAllProducts: async () => {
+            const inv = await waitForInventory();
+            return inv.manager.getAllProducts();
+        }
+    };
+
+    // Auto-enhance invoice forms when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', enhanceInvoiceForm);
+    } else {
+        setTimeout(enhanceInvoiceForm, 1000);
+    }
+
+    console.log('🔗 Inventory integration helpers loaded. Use window.__inventoryIntegration');
+})();
