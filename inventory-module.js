@@ -534,3 +534,12 @@
     }
 
 })();
+// In the onupgradeneeded event handler
+if (!db.objectStoreNames.contains('invoiceHistory')) {
+    const invHistStore = db.createObjectStore('invoiceHistory', { 
+        keyPath: 'invoiceNumber' 
+    });
+    invHistStore.createIndex('date', 'date');
+    invHistStore.createIndex('customer', 'customer');
+    console.log('✅ Invoice history store created');
+}
