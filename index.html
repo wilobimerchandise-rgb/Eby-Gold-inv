@@ -954,6 +954,165 @@
             });
         })();
     </script>
+<script>
+    (function() {
+        'use strict';
 
+        // Wait for inventory and DOM
+        function initDropdown() {
+            if (!window.__inventory || !window.__inventory.manager) {
+                console.log('⏳ Waiting for inventory...');
+                setTimeout(initDropdown, 1000);
+                return;
+            }
+
+            console.log('✅ Inventory found, connecting dropdown...');
+
+            // Find all item name inputs
+            const nameInputs = document.querySelectorAll('.item-name');
+            console.log('📝 Found', nameInputs.length, 'item inputs');
+
+            if (nameInputs.length === 0) {
+                console.warn('⚠️ No .item-name inputs found. Check your table structure.');
+                return;
+            }
+
+            nameInputs.forEach(function(input) {
+                if (input.dataset.dropdownEnhanced === 'true') return;
+                input.dataset.dropdownEnhanced = 'true';
+
+                const container = input.parentElement;
+                let list = container.querySelector('.autocomplete-list');
+                
+                if (!list) {
+                    list = document.createElement('div');
+                    list.className = 'autocomplete-list';
+                    list.style.cssText = `
+                        position: absolute;
+                        background: white;
+                        border: 1px solid #ddd;
+                        border-radius: 4px;
+                        max-height: 200px;
+                        overflow-y: auto;
+                        z-index: 1000;
+                        min-width: 200px;
+                        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                        display: none;
+                    `;
+                    container.style.position = 'relative';
+                    container.appendChild(list);
+                }
+
+                input.addEventListener('input', function() {
+                    const query = this.value.trim();
+                    if (query.length < 1) {
+                        list.style.display = 'none';
+                        return;
+                    }
+
+                    window.__inventory.manager.searchProducts(query)
+                        .then(function(products) {
+                            if (products.length === 0) {
+                                list.innerHTML = `<div style="padding:8px;color:#999;">No products found</div>`;
+                                list.style.display = 'block';
+                                return;
+                            }
+
+                            list.innerHTML = '';
+                            products.forEach(function(product) {
+                                const item = document.createElement('div');
+                                const priceNGN = (product.unitPriceUSD || 0) * 1600;
+                                const stock = product.quantity || 0;
+                                const stockColor = stock < 10 ? '#dc3545' : '#28a745';
+                                
+                                item.style.cssText = `
+                                    padding: 8px 12px;
+                                    cursor: pointer;
+                                    border-bottom: 1px solid #f0f0f0;
+                                    display: flex;
+                                    justify-content: space-between;
+                                    align-items: center;
+                                `;
+                                item.innerHTML = `
+                                    <span><strong>${product.name}</strong></span>
+                                    <span style="color:#666;">₦${priceNGN.toLocaleString()}</span>
+                                    <span style="font-size:12px;color:${stockColor};">Stock: ${stock}</span>
+                                `;
+                                
+                                item.addEventListener('click', function() {
+                                    const row = input.closest('.item-row');
+                                    const rateInput = row.querySelector('.item-rate');
+                                    const qtyInput = row.querySelector('.item-qty');
+                                    
+                                    input.value = product.name;
+                                    input.dataset.productId = product.id;
+                                    
+                                    const rateNGN = (product.unitPriceUSD || 0) * 1600;
+                                    if (rateInput) rateInput.value = rateNGN.toFixed(2);
+                                    
+                                    if (qtyInput) {
+                                        const event = new Event('input', { bubbles: true });
+                                        qtyInput.dispatchEvent(event);
+                                    }
+                                    if (rateInput) {
+                                        const event = new Event('input', { bubbles: true });
+                                        rateInput.dispatchEvent(event);
+                                    }
+                                    
+                                    list.style.display = 'none';
+                                });
+                                
+                                list.appendChild(item);
+                            });
+                            list.style.display = 'block';
+                        })
+                        .catch(function(error) {
+                            console.error('Search failed:', error);
+                        });
+                });
+
+                input.addEventListener('blur', function() {
+                    setTimeout(function() { list.style.display = 'none'; }, 300);
+                });
+            });
+
+            console.log('✅ Dropdown connected! Try typing in the Items field.');
+        }
+
+        // Start after DOM ready
+        if (document.readyState === 'complete') {
+            setTimeout(initDropdown, 1000);
+        } else {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(initDropdown, 1500);
+            });
+        }
+
+        // Watch for new rows
+        const observer = new MutationObserver(function(mutations) {
+            for (const mutation of mutations) {
+                if (mutation.type === 'childList') {
+                    for (const node of mutation.addedNodes) {
+                        if (node.nodeType === 1 && node.classList && node.classList.contains('item-row')) {
+                            setTimeout(initDropdown, 500);
+                        }
+                    }
+                }
+            }
+        });
+
+        const tbody = document.getElementById('invoice-items-body');
+        if (tbody) {
+            observer.observe(tbody, { childList: true, subtree: false });
+        }
+
+        // Global helper
+        window.addNewProductFromInvoice = function(name) {
+            // This will be used if you add the "Create" button later
+            console.log('Create product:', name);
+        };
+
+    })();
+</script>
 </body>
 </html>
