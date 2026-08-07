@@ -1,1249 +1,959 @@
 <!DOCTYPE html>
 <html lang="en">
-<head> 
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#1D4ED8">
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Eby-Gold Superstores | Invoice App</title>
-    <script>
-    if('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js');
-    }
-    </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<style>
-:root {
-    --primary: #0a2540;
-    --gold: #d4af37;
-    --bg: #f4f7fa;
-    --card: #ffffff;
-    --text: #1a202c;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
-body { background: var(--bg); color: var(--text); }
-
-/* LOGIN & MODALS */
-.login-wrap { display: flex; justify-content: center; align-items: center; height: 100vh; padding: 20px; }
-.login-card { background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: left; }
-.login-card img { display: block; width: 100px; margin: 0 auto 15px auto; }
-.login-card h2, .login-card p { text-align: center; }
-.login-card input[type="text"], .login-card input[type="password"] { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
-.login-options { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; font-size: 13px; color: #4a5568; }
-.login-options label { display: flex; align-items: center; gap: 5px; cursor: pointer; font-weight: normal; margin-bottom: 0; }
-.login-options input { cursor: pointer; }
-.login-err { color: #dc2626; font-size: 13px; font-weight: 600; display: none; margin-top: 5px; margin-bottom: 10px; text-align: center; }
-.toggle-link { color: var(--primary); text-decoration: underline; cursor: pointer; font-size: 13px; font-weight: 600; display: block; text-align: center; margin-top: 15px; }
-
-/* MODAL FOR CHANGE PASSWORD */
-.modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
-.modal-content { background: var(--card); padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; position: relative; }
-.close-modal { position: absolute; right: 15px; top: 10px; font-size: 20px; cursor: pointer; font-weight: bold; color: #666; }
-
-.btn { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 10px; }
-.btn:hover { background: #12395e; }
-.btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
-.btn-group .btn { width: auto; flex: 1; min-width: 120px; }
-.btn-gold { background: var(--gold); color: var(--primary); }
-.btn-gold:hover { background: #c49f2a; }
-
-/* APP LAYOUT */
-.container { max-width: 1200px; margin: 0 auto; padding: 20px; display: none; }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-.header h1 { color: var(--primary); }
-.app-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
-@media (max-width: 900px) {
-    .app-grid { grid-template-columns: 1fr; }
-}
-
-.card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
-.preview-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; position: relative; }
-input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; }
-label { font-weight: 600; font-size: 13px; margin-bottom: 5px; display: block; }
-
-/* AUTOCOMPLETE SUGGESTIONS */
-.autocomplete-wrapper { position: relative; }
-.suggestions-list {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    max-height: 150px;
-    overflow-y: auto;
-    z-index: 10;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    display: none;
-}
-.suggestions-list div {
-    padding: 10px;
-    cursor: pointer;
-    font-size: 13px;
-}
-.suggestions-list div:hover {
-    background: #f1f5f9;
-}
-
-/* HISTORY SIDEBAR PANEL */
-.history-title { font-size: 16px; font-weight: bold; color: var(--primary); margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 5px; }
-.history-list { display: flex; flex-direction: column; gap: 10px; max-height: 600px; overflow-y: auto; }
-.history-item { padding: 12px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: 0.2s; }
-.history-item:hover { background: #f1f5f9; border-color: var(--primary); }
-.history-item-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 13px; margin-bottom: 5px; }
-.history-item-body { font-size: 12px; color: #64748b; }
-
-/* TABLE Adjustments */
-.items-table { width: 100%; border-collapse: collapse; margin: 20px 0; border: 2px solid var(--primary); }
-.items-table th,.items-table td { border: 1px solid var(--primary); padding: 10px; text-align: left; font-size: 12px; }
-.items-table th { background: var(--primary); color: white; font-weight: 700; }
-.items-table tr:nth-child(even) { background: #f8fafc; }
-.items-table th:first-child, .items-table td:first-child { width: 50px; text-align: center; }
-.action-btn { color: red; cursor: pointer; border: none; background: none; font-size: 16px; font-weight: bold; }
-
-/* INVOICE PREVIEW */
-.invoice { background: white; padding: 30px; position: relative; min-height: 900px; border: 1px solid #ddd; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; }
-.invoice-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px; position: relative; }
-.logo-box { width: 130px; height: 130px; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 8px; overflow: hidden; font-weight: 800; }
-.logo-box img { width: 100%; height: 100%; object-fit: contain; }
-
-/* BOLD BRAND LOGO BEHIND NAME */
-.brand-wrapper { position: relative; display: inline-block; }
-.brand-bg-logo {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 280px;
-    height: auto;
-    opacity: 0.3;
-    z-index: -1;
-    pointer-events: none;
-}
-
-.company-name { font-size: 26px; font-weight: 900; color: var(--primary); letter-spacing: 1px; line-height: 1.2; position: relative; z-index: 1; }
-.company-details { font-size: 12px; color: #4a5568; margin-top: 5px; line-height: 1.4; position: relative; z-index: 1; }
-.status-badge { background: #fef3c7; color: #92400e; padding: 6px 12px; border-radius: 20px; font-weight: 600; display: inline-block; margin-bottom: 10px; }
-
-/* IN WORDS */
-.words-container {
-    margin: 15px 0;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--primary);
-    line-height: 1.6;
-    word-wrap: break-word;
-    white-space: normal;
-}
-.words-underlined {
-    text-decoration: underline;
-    text-transform: capitalize;
-}
-
-/* PAYMENT & TOTALS GRID */
-.bottom-section { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px; margin-top: 15px; }
-.payment-table, .totals-table { border-collapse: collapse; width: 280px; font-size: 12px; }
-.payment-table { border: 1.5px solid var(--primary); }
-.payment-table th { background: var(--primary); color: white; padding: 6px 10px; text-align: left; font-size: 11px; }
-.payment-table td { border: 1px solid #cbd5e1; padding: 6px 10px; }
-
-.totals-table { border: 1px solid #94a3b8; margin-left: auto; }
-.totals-table td { padding: 8px 12px; border: 1px solid #94a3b8; text-align: right; }
-.totals-table td:first-child { font-weight: bold; text-align: left; background: #f8fafc; }
-.totals-table tr.grand-total td { font-size: 14px; font-weight: bold; color: var(--primary); }
-
-/* FOOTER SECTION */
-.invoice-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 40px; font-size: 12px; color: #64748b; border-top: 1px dashed #e2e8f0; }
-.footer-created-by { font-weight: 700; color: var(--primary); text-transform: capitalize; }
-
-/* WATERMARK */
-.watermark {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-30deg);
-    opacity: 0.18;
-    width: 100%;
-    height: auto;
-    max-width: 650px;
-    z-index: 0;
-    pointer-events: none;
-    filter: contrast(1.1);
-}
-.invoice-content { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; justify-content: space-between; flex-grow: 1; }
-
-/* PRINT */
-@media print {
-    body * { visibility: hidden; }
-    .invoice, .invoice * { visibility: visible; }
-    .invoice { position: absolute; left: 0; top: 0; width: 100%; border: none; }
-    .action-btn, .no-print, .app-grid { display: none !important; }
-}
-</style>
-</head>
-<body>
-
-<!-- LOGIN / SIGN UP -->
-<div class="login-wrap" id="loginScreen">
-    <div class="login-card" id="loginCard">
-        <img src="" id="loginLogo" alt="Eby-Gold">
-        <h2 style="color:var(--primary); font-weight:900">EBY-GOLD SUPERSTORES</h2>
-        <p style="margin-bottom: 10px; font-size: 13px; color: #64748b;" id="loginSubText">Please sign in to continue</p>
-        
-        <input type="text" id="username" placeholder="Username">
-        <input type="password" id="password" placeholder="Password">
-        
-        <div class="login-options">
-            <label><input type="checkbox" id="rememberMe"> Remember Me</label>
-            <label><input type="checkbox" id="showPassword" onclick="togglePasswordVisibility()"> Show Password</label>
-        </div>
-        
-        <div class="login-err" id="loginError">Invalid username or password!</div>
-        
-        <button class="btn" id="primaryLoginBtn" onclick="login()">Login</button>
-        <span class="toggle-link" id="authToggle" onclick="toggleAuthMode()">Don't have an account? Sign Up</span>
-    </div>
-</div>
-
-<!-- CHANGE PASSWORD MODAL -->
-<div class="modal" id="pwdModal">
-    <div class="modal-content">
-        <span class="close-modal" onclick="closePwdModal()">&times;</span>
-        <h3 style="color: var(--primary); margin-bottom: 15px;">Change Password</h3>
-        <input type="password" id="oldPwd" placeholder="Current Password">
-        <input type="password" id="newPwd" placeholder="New Preferred Password">
-        <div class="login-err" id="pwdError">Incorrect password!</div>
-        <button class="btn" onclick="submitPasswordChange()">Update Password</button>
-    </div>
-</div>
-
-<!-- MAIN APP -->
-<div class="container" id="appScreen">
-    <div class="header">
-        <h1>Workstation</h1>
-        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <span id="loggedInAs" style="font-weight: 600; color: var(--primary);"></span>
-            <button class="btn btn-gold" style="width:auto; margin-top: 0; padding: 8px 15px;" onclick="openPwdModal()">🔑 Password</button>
-            <button class="btn" style="width:auto; margin-top: 0; padding: 8px 15px;" onclick="logout()">Logout</button>
-        </div>
-    </div>
-
-    <!-- DOUBLE COLUMN LAYOUT: Entry forms on Left, Databases & History Sidebar on Right -->
-    <div class="app-grid">
-        <div>
-            <!-- Client card with autocomplete -->
-            <div class="card">
-                <h3>Customer Details</h3>
-                <div class="grid">
-                    <div class="autocomplete-wrapper">
-                        <label>Billed To</label>
-                        <input id="billedTo" placeholder="Customer Name" autocomplete="off" oninput="showClientSuggestions(this.value)">
-                        <div class="suggestions-list" id="clientSuggestions"></div>
-                    </div>
-                    <div><label>Phone</label><input id="phone" placeholder="080xxxxxxxx"></div>
-                    <div style="grid-column:1/-1"><label>Address</label><input id="address" placeholder="Customer Address"></div>
-                </div>
-            </div>
-
-            <!-- Invoice properties -->
-            <div class="card">
-                <h3>Document Configuration</h3>
-                <div class="grid">
-                    <div><label>Document Type</label>
-                        <select id="docType">
-                            <option>Sales Invoice</option>
-                            <option>Receipt</option>
-                            <option>Quotation</option>
-                        </select>
-                    </div>
-                    <div><label><input type="checkbox" id="vat"> Add 7.5% VAT</label></div>
-                </div>
-            </div>
-
-            <!-- Add Items with autocomplete -->
-            <div class="card">
-                <h3>Add Items</h3>
-                <div class="grid">
-                    <div class="autocomplete-wrapper">
-                        <label>Item Description</label>
-                        <input id="itemName" placeholder="Item Name" autocomplete="off" oninput="showItemSuggestions(this.value)">
-                        <div class="suggestions-list" id="itemSuggestions"></div>
-                    </div>
-                    <div><label>Qty</label><input id="qty" type="number" value="1"></div>
-                    <div><label>Rate (NGN)</label><input id="rate" type="number" value="0"></div>
-                    <div><button class="btn btn-gold" onclick="addItem()">Add to Table</button></div>
-                </div>
-                
-                <table class="items-table" id="itemsTable">
-                    <thead><tr><th>S/N</th><th>Items</th><th>Qty</th><th>Rate</th><th>Total</th><th class="no-print"></th></tr></thead>
-                    <tbody></tbody>
-                </table>
-
-                <!-- Action Controls -->
-                <div class="btn-group no-print">
-                    <button class="btn btn-gold" onclick="convertToReceipt()">🧾 Convert to Receipt</button>
-                    <button class="btn" id="viewDbBtn" onclick="toggleDatabaseSidebar()">🗄️ View Database</button>
-                    <button class="btn btn-gold" onclick="previewInvoice()">👁️ Preview Document</button>
-                    <button class="btn" onclick="downloadPDF()">⬇️ Download PDF</button>
-                    <button class="btn" onclick="printInvoice()">🖨️ Print</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- SIDEBAR: INVOICE HISTORY & DATABASES -->
-        <div id="sidebarColumn">
-            <div class="card" style="height: calc(100% - 20px); overflow-y: auto;">
-                <div class="history-title">Saved Document History</div>
-                <div class="history-list" id="historyPanel">
-                    <!-- History database entries render dynamically here -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- PREVIEW AREA -->
-    <div class="card" id="previewCard" style="display:none; margin-top: 20px;">
-        <div class="preview-header no-print">
-            <h3>Invoice Preview</h3>
-            <button class="btn btn-gold" style="width: auto; margin-top: 0;" onclick="downloadPDF()">⬇️ Download PDF</button>
-        </div>
-        
-        <div class="invoice" id="invoice">
-            <img src="" class="watermark" id="watermarkImg">
-            <div class="invoice-content">
-                <div>
-                    <div class="invoice-header">
-                        <div class="brand-wrapper">
-                            <img src="" class="brand-bg-logo" id="brandBgLogo" style="display:none">
-                            <div class="logo-box no-print" onclick="uploadLogo()"><span>+ Upload Logo</span><img id="logoPreview" style="display:none"></div>
-                            <h2 class="company-name">EBY-GOLD SUPERSTORES</h2>
-                            <div class="company-details">
-                                <p>19, Jejelaiye Street, Surulere, Lagos.</p>
-                                <p><b>Tel:</b> 07058016395</p>
-                                <p><b>Email:</b> ebereakaolisa5@gmail.com</p>
-                            </div>
-                            <br>
-                            <h4 id="previewDocType" style="color: var(--primary);">Sales Invoice</h4>
-                        </div>
-                        <div style="text-align:right">
-                            <div class="status-badge" id="statusBadge">UNPAID</div>
-                            <p><b>DOCUMENT NO.</b><br><span id="invNo"></span></p>
-                            <p><span id="invDate"></span></p>
-                        </div>
-                    </div>
-                    <hr style="margin:15px 0; border:1px solid var(--primary)">
-                    <p><b>BILLED TO</b><br><span id="previewName"></span><br><span id="previewPhone"></span><br><span id="previewAddress"></span></p>
-                    
-                    <div id="invoiceTable"></div>
-
-                    <div class="bottom-section">
-                        <table class="payment-table">
-                            <thead>
-                                <tr><th colspan="2">PAYMENT INFORMATION</th></tr>
-                            </thead>
-                            <tbody>
-                                <tr><td><b>Bank</b></td><td>UBA</td></tr>
-                                <tr><td><b>Account No</b></td><td>2189015307</td></tr>
-                                <tr><td><b>Account Name</b></td><td>Ebere Favour Akaolisa</td></tr>
-                            </tbody>
-                        </table>
-
-                        <table class="totals-table" id="totalsTableHTML"></table>
-                    </div>
-
-                    <div class="words-container">
-                        <span><b>Amount in Words:</b> </span><span id="amountInWords" class="words-underlined">Zero Naira Only</span>
-                    </div>
-                </div>
-
-                <div class="invoice-footer">
-                    <span>Thank you for choosing Eby-Gold Superstores</span>
-                    <span>Created by: <span id="footerCreator" class="footer-created-by"></span></span>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-let items = [];
-let isSignUpMode = false;
-let autoSaveTimeout = null;
-
-// USER PRESETS
-const PRESET_USERS = {
-    "admin": "admin123",
-    "user1": "password123",
-    "user2": "password123"
-};
-
-if (!localStorage.getItem('eby_users_db')) {
-    localStorage.setItem('eby_users_db', JSON.stringify(PRESET_USERS));
-}
-
-function getUsersDB() {
-    return JSON.parse(localStorage.getItem('eby_users_db'));
-}
-
-function saveUsersDB(db) {
-    localStorage.setItem('eby_users_db', JSON.stringify(db));
-}
-
-function getActiveUser() {
-    return localStorage.getItem('eby_user') || 'system';
-}
-
-// REMEMBER ME / SHOW PASSWORD TOGGLES
-function togglePasswordVisibility() {
-    const pwdInput = document.getElementById('password');
-    pwdInput.type = document.getElementById('showPassword').checked ? 'text' : 'password';
-}
-
-function checkRememberedUser() {
-    const savedU = localStorage.getItem('remembered_u');
-    const savedP = localStorage.getItem('remembered_p');
-    if (savedU && savedP) {
-        document.getElementById('username').value = savedU;
-        document.getElementById('password').value = savedP;
-        document.getElementById('rememberMe').checked = true;
-    }
-}
-
-// TOGGLE SIGNUP OR LOGIN CARD MODE
-function toggleAuthMode() {
-    const errorDiv = document.getElementById('loginError');
-    errorDiv.style.display = 'none';
-    isSignUpMode = !isSignUpMode;
-    
-    if (isSignUpMode) {
-        document.getElementById('loginSubText').innerText = "Create a new user account";
-        document.getElementById('primaryLoginBtn').innerText = "Sign Up";
-        document.getElementById('authToggle').innerText = "Already have an account? Login";
-    } else {
-        document.getElementById('loginSubText').innerText = "Please sign in to continue";
-        document.getElementById('primaryLoginBtn').innerText = "Login";
-        document.getElementById('authToggle').innerText = "Don't have an account? Sign Up";
-    }
-}
-
-// TOGGLE LOCAL DATABASE SIDEBAR 
-function toggleDatabaseSidebar() {
-    const sidebar = document.getElementById('sidebarColumn');
-    const btn = document.getElementById('viewDbBtn');
-    if (sidebar.style.display === 'none') {
-        sidebar.style.display = 'block';
-        btn.innerText = "🗄️ Hide Database";
-    } else {
-        sidebar.style.display = 'none';
-        btn.innerText = "🗄️ View Database";
-    }
-}
-
-// IN WORDS ENGINE
-function numToWords(num) {
-    const ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
-    const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
-    
-    function convert(n) {
-        if (n < 20) return ones[n];
-        if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
-        if (n < 1000) return ones[Math.floor(n / 100)] + ' hundred' + (n % 100 !== 0 ? ' and ' + convert(n % 100) : '');
-        if (n < 1000000) return convert(Math.floor(n / 1000)) + ' thousand' + (n % 1000 !== 0 ? ' ' + convert(n % 1000) : '');
-        return convert(Math.floor(n / 1000000)) + ' million' + (n % 1000000 !== 0 ? ' ' + convert(n % 1000000) : '');
-    }
-
-    if (num === 0) return "Zero Naira Only";
-    
-    let parts = num.toString().split('.');
-    let wholeNum = parseInt(parts[0]);
-    let decimalNum = parts[1] ? parseInt(parts[1].substr(0, 2)) : 0;
-    
-    let result = convert(wholeNum) + " Naira";
-    if (decimalNum > 0) {
-        result += " and " + convert(decimalNum) + " Kobo";
-    }
-    return result + " Only";
-}
-
-// LOGIN ROUTER
-function login(){
-    let u = document.getElementById('username').value.trim().toLowerCase();
-    let p = document.getElementById('password').value.trim();
-    let err = document.getElementById('loginError');
-    let rememberCheck = document.getElementById('rememberMe').checked;
-
-    if (!u || !p) {
-        err.innerText = "All fields are required!";
-        err.style.display = 'block';
-        return;
-    }
-
-    let db = getUsersDB();
-
-    if (isSignUpMode) {
-        if (db[u]) {
-            err.innerText = "Username already exists!";
-            err.style.display = 'block';
-        } else {
-            db[u] = p;
-            saveUsersDB(db);
-            alert("Sign Up Successful! You can now log in.");
-            toggleAuthMode();
-            document.getElementById('username').value = u;
-            document.getElementById('password').value = p;
-        }
-    } else {
-        if (db[u] && db[u] === p) {
-            err.style.display = 'none';
-            localStorage.setItem('eby_user', u);
-            
-            if (rememberCheck) {
-                localStorage.setItem('remembered_u', u);
-                localStorage.setItem('remembered_p', p);
-            } else {
-                localStorage.removeItem('remembered_u');
-                localStorage.removeItem('remembered_p');
-            }
-            
-            document.getElementById('loginScreen').style.display='none';
-            document.getElementById('appScreen').style.display='block';
-            document.getElementById('loggedInAs').innerText = "Logged in as: " + u;
-            generateInvNo();
-            renderHistoryList();
-        } else {
-            err.innerText = "Invalid username or password!";
-            err.style.display = 'block';
-        }
-    }
-}
-
-// PASSWORD MODALS
-function openPwdModal() {
-    document.getElementById('oldPwd').value = '';
-    document.getElementById('newPwd').value = '';
-    document.getElementById('pwdError').style.display = 'none';
-    document.getElementById('pwdModal').style.display = 'flex';
-}
-function closePwdModal() { document.getElementById('pwdModal').style.display = 'none'; }
-function submitPasswordChange() {
-    let currentUser = localStorage.getItem('eby_user');
-    let oldP = document.getElementById('oldPwd').value.trim();
-    let newP = document.getElementById('newPwd').value.trim();
-    let err = document.getElementById('pwdError');
-
-    if (!oldP || !newP) {
-        err.innerText = "Both fields are required!";
-        err.style.display = "block";
-        return;
-    }
-
-    let db = getUsersDB();
-    if (db[currentUser] === oldP) {
-        db[currentUser] = newP;
-        saveUsersDB(db);
-        alert("Password updated successfully!");
-        closePwdModal();
-    } else {
-        err.innerText = "Incorrect current password!";
-        err.style.display = "block";
-    }
-}
-
-function logout(){ localStorage.removeItem('eby_user'); location.reload(); }
-
-// CLIENT & ITEM INDEX DATABASES (AUTOFILL ENGINE)
-function getClientDatabase() {
-    return JSON.parse(localStorage.getItem('eby_clients_db')) || [];
-}
-function saveToClientDatabase(client) {
-    let db = getClientDatabase();
-    if (!db.some(c => c.name.toLowerCase() === client.name.toLowerCase())) {
-        db.push(client);
-        localStorage.setItem('eby_clients_db', JSON.stringify(db));
-    }
-}
-function getItemDatabase() {
-    return JSON.parse(localStorage.getItem('eby_items_db')) || [];
-}
-function saveToItemDatabase(item) {
-    let db = getItemDatabase();
-    if (!db.some(it => it.name.toLowerCase() === item.name.toLowerCase())) {
-        db.push(item);
-        localStorage.setItem('eby_items_db', JSON.stringify(db));
-    }
-}
-
-// CLIENT AUTOCOMPLETE
-function showClientSuggestions(val) {
-    const list = document.getElementById('clientSuggestions');
-    list.innerHTML = '';
-    if (!val) { list.style.display = 'none'; return; }
-    
-    const db = getClientDatabase();
-    const filtered = db.filter(c => c.name.toLowerCase().includes(val.toLowerCase()));
-    
-    if (filtered.length === 0) { list.style.display = 'none'; return; }
-    
-    filtered.forEach(c => {
-        let div = document.createElement('div');
-        div.innerText = `${c.name} (${c.phone})`;
-        div.onclick = () => {
-            document.getElementById('billedTo').value = c.name;
-            document.getElementById('phone').value = c.phone;
-            document.getElementById('address').value = c.address;
-            list.style.display = 'none';
-            updatePreview();
-            triggerAutoSave();
-        };
-        list.appendChild(div);
-    });
-    list.style.display = 'block';
-}
-
-// ITEM AUTOCOMPLETE
-function showItemSuggestions(val) {
-    const list = document.getElementById('itemSuggestions');
-    list.innerHTML = '';
-    if (!val) { list.style.display = 'none'; return; }
-    
-    const db = getItemDatabase();
-    const filtered = db.filter(it => it.name.toLowerCase().includes(val.toLowerCase()));
-    
-    if (filtered.length === 0) { list.style.display = 'none'; return; }
-    
-    filtered.forEach(it => {
-        let div = document.createElement('div');
-        div.innerText = `${it.name} - NGN ${it.rate.toLocaleString()}`;
-        div.onclick = () => {
-            document.getElementById('itemName').value = it.name;
-            document.getElementById('rate').value = it.rate;
-            list.style.display = 'none';
-        };
-        list.appendChild(div);
-    });
-    list.style.display = 'block';
-}
-
-// CLOSE SUGGESTIONS WHEN CLICKED OUTSIDE
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.autocomplete-wrapper')) {
-        document.getElementById('clientSuggestions').style.display = 'none';
-        document.getElementById('itemSuggestions').style.display = 'none';
-    }
-});
-
-// DOCUMENT NO ENGINE
-function generateInvNo(){
-    let docType = document.getElementById('docType').value;
-    let prefix = "EGS-INV-";
-    if (docType === "Receipt") prefix = "EGS-REC-";
-    if (docType === "Quotation") prefix = "EGS-QUO-";
-    
-    let no = '#' + prefix + Math.floor(100000 + Math.random() * 900000);
-    document.getElementById('invNo').innerText = no;
-    document.getElementById('invDate').innerText = new Date().toLocaleDateString('en-GB');
-}
-
-// SHORTCUT BUTTON FOR RECEIPT CONVERSION
-function convertToReceipt() {
-    document.getElementById('docType').value = 'Receipt';
-    generateInvNo();
-    updatePreview();
-    previewInvoice();
-    triggerAutoSave();
-}
-
-// WORKSTATION DATA LIST BUILDERS
-function addItem(){
-    let name = document.getElementById('itemName').value;
-    let qty = parseFloat(document.getElementById('qty').value);
-    let rate = parseFloat(document.getElementById('rate').value);
-    if(!name || qty <= 0 || rate < 0) return alert('Please enter valid item details.');
-    
-    // Auto-index item database
-    saveToItemDatabase({ name, rate });
-
-    items.push({name, qty, rate, total: qty*rate});
-    renderTable();
-    document.getElementById('itemName').value=''; document.getElementById('qty').value=1; document.getElementById('rate').value=0;
-    triggerAutoSave();
-}
-function deleteItem(i){ 
-    items.splice(i,1); 
-    renderTable(); 
-    triggerAutoSave();
-}
-
-function renderTable(){
-    let tbody = document.querySelector('#itemsTable tbody');
-    tbody.innerHTML = '';
-    items.forEach((it,i)=>{
-        tbody.innerHTML += `<tr>
-            <td>${i+1}</td><td>${it.name}</td><td>${it.qty}</td>
-            <td>NGN ${it.rate.toLocaleString()}</td><td>NGN ${it.total.toLocaleString()}</td>
-            <td class="no-print"><button class="action-btn" onclick="deleteItem(${i})">X</button></td>
-        </tr>`
-    });
-    updatePreview();
-}
-
-// LIVE RENDERPREVIEW ENGINE
-function updatePreview(){
-    let docTypeVal = document.getElementById('docType').value;
-    document.getElementById('previewName').innerText = document.getElementById('billedTo').value;
-    document.getElementById('previewPhone').innerText = document.getElementById('phone').value;
-    document.getElementById('previewAddress').innerText = document.getElementById('address').value;
-    document.getElementById('previewDocType').innerText = docTypeVal;
-
-    const badge = document.getElementById('statusBadge');
-    if (docTypeVal === "Receipt") {
-        badge.innerText = "PAID";
-        badge.style.background = "#d1fae5";
-        badge.style.color = "#065f46";
-    } else {
-        badge.innerText = "UNPAID";
-        badge.style.background = "#fef3c7";
-        badge.style.color = "#92400e";
-    }
-
-    let tableHTML = '<table class="items-table"><thead><tr><th>S/N</th><th>Items</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead><tbody>';
-    items.forEach((it,i)=>{
-        tableHTML += `<tr><td>${i+1}</td><td>${it.name}</td><td>${it.qty}</td><td>NGN ${it.rate.toLocaleString()}</td><td>NGN ${it.total.toLocaleString()}</td></tr>`
-    });
-    tableHTML += '</tbody></table>';
-    document.getElementById('invoiceTable').innerHTML = tableHTML;
-
-    let subtotal = items.reduce((a,b)=>a+b.total,0);
-    let vat = document.getElementById('vat').checked? subtotal*0.075 : 0;
-    let total = subtotal + vat;
-    
-    let totalsTableHTML = `
-        <tbody>
-            <tr><td>Subtotal</td><td>NGN ${subtotal.toLocaleString()}</td></tr>
-            ${vat ? `<tr><td>VAT 7.5%</td><td>NGN ${vat.toLocaleString()}</td></tr>` : ''}
-            <tr class="grand-total"><td>Total</td><td>NGN ${total.toLocaleString()}</td></tr>
-        </tbody>
-    `;
-    document.getElementById('totalsTableHTML').innerHTML = totalsTableHTML;
-    document.getElementById('amountInWords').innerText = numToWords(total);
-    document.getElementById('footerCreator').innerText = getActiveUser();
-}
-
-// BACKGROUND AUTO-SAVE SEQUENCER
-function triggerAutoSave() {
-    clearTimeout(autoSaveTimeout);
-    autoSaveTimeout = setTimeout(() => {
-        saveInvoice(true);
-    }, 400);
-}
-
-// HISTORICAL RECORD & LOCAL DATABASE STORAGE
-function saveInvoice(isSilent = false){
-    const clientName = document.getElementById('billedTo').value;
-    const clientPhone = document.getElementById('phone').value;
-    const clientAddress = document.getElementById('address').value;
-    const docNo = document.getElementById('invNo').innerText;
-
-    if (!clientName) {
-        if(!isSilent) alert("Customer Name is required to save an invoice.");
-        return;
-    }
-
-    // Index client into database
-    saveToClientDatabase({ name: clientName, phone: clientPhone, address: clientAddress });
-
-    let invoicePayload = {
-        customer: {name: clientName, phone: clientPhone, address: clientAddress},
-        docType: document.getElementById('docType').value, 
-        vat: document.getElementById('vat').checked, 
-        items: items, 
-        invNo: docNo,
-        date: document.getElementById('invDate').innerText,
-        creator: getActiveUser()
-    };
-    
-    let history = JSON.parse(localStorage.getItem('eby_invoice_history')) || [];
-    history = history.filter(inv => inv.invNo !== docNo);
-    history.unshift(invoicePayload);
-    localStorage.setItem('eby_invoice_history', JSON.stringify(history));
-
-    if(!isSilent) alert('Document Successfully Saved to Database! ID: ' + docNo);
-    renderHistoryList();
-}
-
-// RENDER HISTORIC DATABASE ENTRIES
-function renderHistoryList() {
-    const historyPanel = document.getElementById('historyPanel');
-    historyPanel.innerHTML = '';
-    const history = JSON.parse(localStorage.getItem('eby_invoice_history')) || [];
-
-    if (history.length === 0) {
-        historyPanel.innerHTML = '<p style="font-size:12px; color:#94a3b8; text-align:center;">No saved documents found.</p>';
-        return;
-    }
-
-    history.forEach(inv => {
-        let itemDiv = document.createElement('div');
-        itemDiv.className = 'history-item';
-        itemDiv.onclick = () => loadInvoiceFromHistory(inv.invNo);
-        
-        let subtotal = inv.items.reduce((a,b)=>a+b.total,0);
-        let grandTotal = inv.vat ? subtotal * 1.075 : subtotal;
-
-        itemDiv.innerHTML = `
-            <div class="history-item-header">
-                <span>${inv.invNo}</span>
-                <span>${inv.docType}</span>
-            </div>
-            <div class="history-item-body">
-                <p><b>Client:</b> ${inv.customer.name}</p>
-                <p><b>Total:</b> NGN ${grandTotal.toLocaleString()}</p>
-                <p><b>Date:</b> ${inv.date} | <b>By:</b> ${inv.creator}</p>
-            </div>
-        `;
-        historyPanel.appendChild(itemDiv);
-    });
-}
-
-// RELOAD INVOICE STATE
-function loadInvoiceFromHistory(invNo) {
-    const history = JSON.parse(localStorage.getItem('eby_invoice_history')) || [];
-    const target = history.find(inv => inv.invNo === invNo);
-    if (!target) return;
-
-    document.getElementById('billedTo').value = target.customer.name;
-    document.getElementById('phone').value = target.customer.phone;
-    document.getElementById('address').value = target.customer.address;
-    document.getElementById('docType').value = target.docType;
-    document.getElementById('vat').checked = target.vat;
-    document.getElementById('invNo').innerText = target.invNo;
-    document.getElementById('invDate').innerText = target.date;
-    
-    items = target.items;
-    renderTable();
-    previewInvoice();
-}
-
-function previewInvoice(){
-    updatePreview();
-    document.getElementById('previewCard').style.display='block';
-    document.getElementById('previewCard').scrollIntoView({behavior:'smooth'});
-}
-
-// LOGO PREVIEW ASSET RECOVERY
-function uploadLogo(){
-    let input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = e => {
-        let reader = new FileReader();
-        reader.onload = () => {
-            document.getElementById('logoPreview').src = reader.result;
-            document.getElementById('logoPreview').style.display = 'block';
-            document.getElementById('watermarkImg').src = reader.result;
-            document.getElementById('brandBgLogo').src = reader.result;
-            document.getElementById('brandBgLogo').style.display = 'block';
-            document.getElementById('loginLogo').src = reader.result;
-            document.querySelector('.logo-box span').style.display='none';
-            localStorage.setItem('eby_logo', reader.result);
-        }
-        reader.readAsDataURL(e.target.files[0]);
-    }
-    input.click();
-}
-
-// RE-RENDER SAVED CONFIGURATION AT SESSION START
-if(localStorage.getItem('eby_logo')){
-    document.getElementById('logoPreview').src = localStorage.getItem('eby_logo');
-    document.getElementById('watermarkImg').src = localStorage.getItem('eby_logo');
-    document.getElementById('brandBgLogo').src = localStorage.getItem('eby_logo');
-    document.getElementById('brandBgLogo').style.display = 'block';
-    document.getElementById('loginLogo').src = localStorage.getItem('eby_logo');
-    document.getElementById('logoPreview').style.display='block';
-    document.querySelector('.logo-box span').style.display='none';
-}
-
-// DIRECT PDF GENERATION ENGINE
-function downloadPDF(){
-    try {
-        updatePreview();
-        saveInvoice(true); // Save one final time cleanly right before printing payload
-        
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        const logoData = localStorage.getItem('eby_logo');
-        const activeUser = getActiveUser();
-        
-        // Watermark Page Logo
-        if(logoData) {
-            doc.saveGraphicsState();
-            if (typeof doc.setGState === "function") {
-                try {
-                    doc.setGState(new doc.GState({ opacity: 0.18 }));
-                } catch(e) {
-                    doc.setFillColor(255, 255, 255);
-                }
-            }
-            doc.addImage(logoData, 'PNG', 10, 35, 190, 190);
-            doc.restoreGraphicsState();
-        }
-        
-        // Small Header Logo
-        if(logoData) {
-            doc.saveGraphicsState();
-            if (typeof doc.setGState === "function") {
-                try {
-                    doc.setGState(new doc.GState({ opacity: 0.25 }));
-                } catch(e) {}
-            }
-            doc.addImage(logoData, 'PNG', 15, 12, 38, 38);
-            doc.restoreGraphicsState();
-        }
-        
-        // Header Text
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(18);
-        doc.setTextColor(10, 37, 64);
-        doc.text("EBY-GOLD SUPERSTORES", 14, 20);
-        
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        doc.setTextColor(80, 80, 80);
-        doc.text("19, Jejelaiye Street, Surulere, Lagos.", 14, 26);
-        doc.text("Tel: 07058016395", 14, 31);
-        doc.text("Email: ebereakaolisa5@gmail.com", 14, 36);
-        
-        // Document Meta Details
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.setTextColor(10, 37, 64);
-        doc.text(document.getElementById('docType').value.toUpperCase(), 196, 20, { align: "right" });
-        
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        doc.text("DOCUMENT NO: " + document.getElementById('invNo').innerText, 196, 28, { align: "right" });
-        doc.text("DATE: " + document.getElementById('invDate').innerText, 196, 34, { align: "right" });
-        
-        doc.setDrawColor(10, 37, 64);
-        doc.setLineWidth(0.5);
-        doc.line(14, 42, 196, 42);
-        
-        // Client details
-        doc.setFont("helvetica", "bold");
-        doc.text("BILLED TO:", 14, 50);
-        doc.setFont("helvetica", "normal");
-        doc.text(document.getElementById('billedTo').value || "N/A", 14, 56);
-        doc.text(document.getElementById('phone').value || "N/A", 14, 62);
-        doc.text(document.getElementById('address').value || "N/A", 14, 68);
-        
-        const tableData = items.map((it, i) => [
-            i + 1,
-            it.name,
-            it.qty,
-            "NGN " + it.rate.toLocaleString(),
-            "NGN " + it.total.toLocaleString()
-        ]);
-
-        doc.autoTable({
-            startY: 75,
-            head: [['S/N', 'Items', 'Qty', 'Rate', 'Total']],
-            body: tableData,
-            headStyles: { fillColor: [10, 37, 64], textColor: [255, 255, 255] },
-            theme: 'grid',
-            columnStyles: {
-                0: { cellWidth: 15, halign: 'center' }
-            }
-        });
-        
-        let finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? (doc.lastAutoTable.finalY + 12) : 95;
-        
-        let subtotal = items.reduce((a, b) => a + b.total, 0);
-        let vat = document.getElementById('vat').checked ? subtotal * 0.075 : 0;
-        let total = subtotal + vat;
-
-        let totalsBody = [['Subtotal', "NGN " + subtotal.toLocaleString()]];
-        if(vat > 0) {
-            totalsBody.push(['VAT 7.5%', "NGN " + vat.toLocaleString()]);
-        }
-        totalsBody.push(['Total', "NGN " + total.toLocaleString()]);
-
-        // Totals Grid
-        doc.autoTable({
-            startY: finalY,
-            margin: { left: 130 },
-            tableWidth: 66,
-            body: totalsBody,
-            theme: 'grid',
-            styles: { fontSize: 9, halign: 'right' },
-            columnStyles: {
-                0: { fontStyle: 'bold', fillColor: [248, 250, 252], halign: 'left' }
-            },
-            didParseCell: function (data) {
-                if (data.row.index === totalsBody.length - 1) {
-                    data.cell.styles.fontStyle = 'bold';
-                    data.cell.styles.textColor = [10, 37, 64];
-                    if (data.column.index === 1) {
-                        data.cell.styles.fontSize = 11;
-                    }
-                }
-            }
-        });
-
-        // Payment Metadata Table
-        doc.autoTable({
-            startY: finalY,
-            margin: { left: 14 },
-            tableWidth: 85,
-            head: [['PAYMENT INFORMATION', '']],
-            body: [
-                ['Bank', 'UBA'],
-                ['Account No', '2189015307'],
-                ['Account Name', 'Ebere Favour Akaolisa']
-            ],
-            headStyles: { fillColor: [10, 37, 64], textColor: [255, 255, 255], fontStyle: 'bold' },
-            theme: 'grid',
-            styles: { fontSize: 8 }
-        });
-
-        let tablesY = doc.lastAutoTable.finalY || finalY;
-        let wordY = tablesY + 12;
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.setTextColor(10, 37, 64);
-        
-        let wordsLabel = "Amount in Words: ";
-        let wordsValue = numToWords(total);
-        
-        let splitWords = doc.splitTextToSize(wordsLabel + wordsValue, 182);
-        doc.text(splitWords, 14, wordY);
-        
-        let totalLinesHeight = splitWords.length * 5; 
-        doc.setDrawColor(10, 37, 64);
-        doc.setLineWidth(0.5);
-        doc.line(14, wordY + totalLinesHeight - 2, 196, wordY + totalLinesHeight - 2);
-
-        // FOOTNOTE ALIGNMENT
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        doc.text("Thank you for choosing Eby-Gold Superstores", 14, 282);
-        
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(10, 37, 64);
-        doc.text("Created by: " + activeUser.toUpperCase(), 196, 282, { align: "right" });
-        
-        let filename = (document.getElementById('invNo').innerText || 'invoice').replace('#','');
-        doc.save(filename + '.pdf');
-    } catch(err) {
-        console.error("Error creating PDF document: ", err);
-        alert("Error: " + err.message);
-    }
-}
-
-function printInvoice(){
-    previewInvoice();
-    setTimeout(()=>{ window.print(); }, 500);
-}
-
-// SYSTEM LOAD ROUTINE
-window.onload = () => {
-    checkRememberedUser();
-    if(localStorage.getItem('eby_user')){
-        document.getElementById('loginScreen').style.display='none';
-        document.getElementById('appScreen').style.display='block';
-        document.getElementById('loggedInAs').innerText = "Logged in as: " + localStorage.getItem('eby_user');
-        generateInvNo();
-        renderHistoryList();
-    }
-}
-
-document.getElementById('docType').addEventListener('change', () => {
-    generateInvNo();
-    updatePreview();
-    triggerAutoSave();
-});
-document.getElementById('vat').addEventListener('change', () => {
-    updatePreview();
-    triggerAutoSave();
-});
-document.querySelectorAll('input,select').forEach(el => {
-    el.addEventListener('input', () => {
-        updatePreview();
-        triggerAutoSave();
-    });
-});
-</script>
-</body>
-                            </html><!DOCTYPE html>
-<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Eby-Gold Superstores | Invoice App</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<style>
-:root {
-    --primary: #0a2540;
-    --gold: #d4af37;
-    --bg: #f4f7fa;
-    --card: #ffffff;
-    --text: #1a202c;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
-body { background: var(--bg); color: var(--text); }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Eby-Gold Superstores - Invoice System</title>
+    
+    <!-- ============================================
+    SERVICE WORKER REGISTRATION
+    ============================================ -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('✅ SW registered:', reg))
+                .catch(err => console.error('❌ SW failed:', err));
+        }
+    </script>
 
-/* ...everything same until .logo-box... */
+    <!-- ============================================
+    CSS STYLES (CORRECTLY PLACED IN HEAD)
+    ============================================ -->
+    <style>
+        /* --------------------------------------------
+           BASE STYLES
+        -------------------------------------------- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-.logo-box { width: 130px; height: 130px; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 8px; overflow: hidden; font-weight: 800; }
-.logo-box img { width: 100%; height: 100%; object-fit: cover; } /* CHANGED: cover instead of contain */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #f4f6f9;
+            color: #333;
+            padding: 20px;
+            line-height: 1.6;
+        }
 
-/* ...everything same until .invoice-footer... */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
 
-.invoice-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 40px; font-size: 12px; color: #64748b; border-top: 1px dashed #e2e8f0; font-weight: 700; font-style: italic; } /* CHANGED: bold + italics */
-.footer-created-by { font-weight: 700; color: var(--primary); text-transform: capitalize; font-style: normal; }
+        h1, h2, h3, h4 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
 
-/* ...rest of CSS same... */
-</style>
+        /* --------------------------------------------
+           INVOICE STYLES
+        -------------------------------------------- */
+        .invoice-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .invoice-header h1 {
+            font-size: 28px;
+            color: #1a237e;
+            margin-bottom: 5px;
+        }
+
+        .invoice-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .invoice-details {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .invoice-details .doc-no {
+            font-weight: bold;
+            color: #1a237e;
+        }
+
+        /* --------------------------------------------
+           TABLE STYLES
+        -------------------------------------------- */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* --------------------------------------------
+           FORM STYLES
+        -------------------------------------------- */
+        input, select, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+        .btn-danger:hover {
+            background: #bd2130;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        /* --------------------------------------------
+           CUSTOMER SECTION
+        -------------------------------------------- */
+        .customer-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .customer-section .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: end;
+        }
+
+        .customer-section .form-group {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .customer-section label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* --------------------------------------------
+           INVENTORY PANEL
+        -------------------------------------------- */
+        #eby-inventory-module {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .inventory-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .inventory-tabs button {
+            padding: 8px 16px;
+            background: #f8f9fa;
+            color: #333;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+
+        .inventory-tabs button.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        /* --------------------------------------------
+           MOBILE-FRIENDLY INVENTORY INTEGRATION
+        -------------------------------------------- */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 15px;
+            }
+
+            .invoice-header h1 {
+                font-size: 22px;
+            }
+
+            /* Invoice item rows - grid layout for mobile */
+            .item-row {
+                display: grid;
+                grid-template-columns: 30px 1fr 60px 80px 80px 30px;
+                gap: 4px;
+                padding: 4px 0;
+                border-bottom: 1px solid #eee;
+                align-items: center;
+            }
+
+            .item-row td {
+                padding: 2px !important;
+                border: none !important;
+            }
+
+            .item-row input {
+                width: 100% !important;
+                padding: 4px !important;
+                font-size: 14px !important;
+            }
+
+            .item-row .item-name {
+                width: 100% !important;
+            }
+
+            /* Autocomplete on mobile */
+            .autocomplete-list {
+                max-height: 150px !important;
+                font-size: 14px !important;
+                position: fixed !important;
+                left: 10px !important;
+                right: 10px !important;
+                width: auto !important;
+                max-width: none !important;
+            }
+
+            /* Invoice summary */
+            #invoice-summary {
+                font-size: 14px;
+                padding: 10px !important;
+            }
+
+            /* Customer section mobile */
+            #customer-db-integration > div {
+                flex-direction: column !important;
+            }
+
+            #customer-db-integration input {
+                font-size: 16px !important; /* Prevents zoom on iOS */
+            }
+
+            /* Table scroll on mobile */
+            .table-responsive {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* Buttons on mobile */
+            button {
+                padding: 12px 16px;
+                font-size: 16px;
+                width: 100%;
+                margin: 4px 0;
+            }
+
+            .customer-section .form-row {
+                flex-direction: column;
+            }
+
+            .customer-section .form-group {
+                width: 100%;
+            }
+
+            /* Inventory panel mobile */
+            #eby-inventory-module {
+                padding: 10px;
+            }
+
+            .inventory-tabs button {
+                flex: 1;
+                min-width: 50px;
+                font-size: 11px;
+                padding: 6px 10px;
+                text-align: center;
+            }
+
+            /* Toast notifications */
+            .inventory-toast {
+                bottom: 20px !important;
+                right: 10px !important;
+                left: 10px !important;
+                max-width: none !important;
+                font-size: 14px !important;
+            }
+        }
+
+        /* --------------------------------------------
+           PRINT STYLES
+        -------------------------------------------- */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+                padding: 20px;
+            }
+
+            button, .no-print {
+                display: none !important;
+            }
+
+            #eby-inventory-module {
+                display: none !important;
+            }
+
+            .item-row input {
+                border: none !important;
+                background: transparent !important;
+            }
+        }
+
+        /* --------------------------------------------
+           UTILITY CLASSES
+        -------------------------------------------- */
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .mt-10 { margin-top: 10px; }
+        .mt-20 { margin-top: 20px; }
+        .mb-10 { margin-bottom: 10px; }
+        .mb-20 { margin-bottom: 20px; }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* Toast animation */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .inventory-toast {
+            animation: slideIn 0.3s ease;
+        }
+
+        /* Modal overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 4px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        /* Floating button */
+        .float-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #007bff;
+            color: white;
+            border: none;
+            font-size: 28px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+            z-index: 9998;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .float-btn:hover {
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 768px) {
+            .float-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 22px;
+                bottom: 20px;
+                right: 20px;
+            }
+        }
+    </style>
+
 </head>
 <body>
 
-<!-- ...all your HTML same... -->
+    <!-- ============================================
+    MAIN APPLICATION
+    ============================================ -->
+    <div class="container" id="app">
 
-<script>
-let items = [];
-let isSignUpMode = false;
-let autoSaveTimeout = null;
+        <!-- Header -->
+        <div class="invoice-header">
+            <h1>EBY-GOLD SUPERSTORES</h1>
+            <p>19, Jejelaiye Street, Surulere, Lagos.</p>
+            <p>Tel: 07058016395 | Email: ebereakaolisa5@gmail.com</p>
+        </div>
 
-// ...all your JS same until updatePreview()...
+        <!-- ============================================
+        CUSTOMER DETAILS SECTION
+        ============================================ -->
+        <div class="customer-section" id="customer-section">
+            <h3>Customer Details</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Customer Name</label>
+                    <input type="text" id="customer-name" placeholder="Enter customer name...">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="text" id="customer-phone" placeholder="Phone number...">
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <input type="text" id="customer-address" placeholder="Customer address...">
+                </div>
+            </div>
+        </div>
 
-function updatePreview(){
-    let docTypeVal = document.getElementById('docType').value;
-    document.getElementById('previewName').innerText = document.getElementById('billedTo').value;
-    document.getElementById('previewPhone').innerText = document.getElementById('phone').value;
-    document.getElementById('previewAddress').innerText = document.getElementById('address').value;
-    document.getElementById('previewDocType').innerText = docTypeVal;
+        <!-- ============================================
+        DOCUMENT CONFIGURATION
+        ============================================ -->
+        <div id="document-config">
+            <h3>Document Configuration</h3>
+            <div style="display:flex; flex-wrap:wrap; gap:15px; align-items:center;">
+                <div style="flex:1; min-width:200px;">
+                    <label style="display:block; font-size:12px; color:#666; margin-bottom:4px;">DOCUMENT NO:</label>
+                    <span id="invoice-number" style="font-weight:bold; font-size:16px; color:#1a237e;">#EGS-INV-</span>
+                </div>
+                <div style="flex:1; min-width:150px;">
+                    <label style="display:block; font-size:12px; color:#666; margin-bottom:4px;">DATE:</label>
+                    <span id="invoice-date" style="font-weight:500;"></span>
+                </div>
+            </div>
+        </div>
 
-    const badge = document.getElementById('statusBadge');
-    if (docTypeVal === "Receipt") {
-        badge.innerText = "PAID";
-        badge.style.background = "#d1fae5";
-        badge.style.color = "#065f46";
-    } else {
-        badge.innerText = "UNPAID";
-        badge.style.background = "#fef3c7";
-        badge.style.color = "#92400e";
-    }
+        <!-- ============================================
+        ADD ITEMS SECTION
+        ============================================ -->
+        <div id="add-items-section">
+            <h3>Add Items</h3>
 
-    let tableHTML = '<table class="items-table"><thead><tr><th>S/N</th><th>Items</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead><tbody>';
-    items.forEach((it,i)=>{
-        tableHTML += `<tr><td>${i+1}</td><td>${it.name}</td><td>${it.qty}</td><td>NGN ${it.rate.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td><td>NGN ${it.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>`
-    });
-    tableHTML += '</tbody></table>';
-    document.getElementById('invoiceTable').innerHTML = tableHTML;
+            <div class="table-responsive">
+                <table id="invoice-items-table">
+                    <thead>
+                        <tr>
+                            <th>S/N</th>
+                            <th>Items</th>
+                            <th>Qty</th>
+                            <th>Rate (₦)</th>
+                            <th>Total (₦)</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoice-items-body">
+                        <tr class="item-row">
+                            <td class="sn">1</td>
+                            <td style="position:relative;">
+                                <input type="text" class="item-name" placeholder="Search or enter product..." autocomplete="off">
+                                <div class="autocomplete-list" style="display:none;"></div>
+                            </td>
+                            <td><input type="number" class="item-qty" value="1" min="1"></td>
+                            <td><input type="number" class="item-rate" step="0.01" value="0"></td>
+                            <td class="item-total">₦0.00</td>
+                            <td><button class="remove-item" style="background:none;color:#dc3545;border:none;font-size:18px;cursor:pointer;width:auto;">✕</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
-    let subtotal = items.reduce((a,b)=>a+b.total,0);
-    let vat = document.getElementById('vat').checked? subtotal*0.075 : 0;
-    let total = subtotal + vat;
-    
-    let totalsTableHTML = `
-        <tbody>
-            <tr><td>Subtotal</td><td>NGN ${subtotal.toFixed(2)}</td></tr>
-            ${vat ? `<tr><td>VAT 7.5%</td><td>NGN ${vat.toFixed(2)}</td></tr>` : ''}
-            <tr class="grand-total"><td>Total</td><td>NGN ${total.toFixed(2)}</td></tr>
-        </tbody>
-    `; // CHANGED: toFixed(2) for 2 decimal places
-    document.getElementById('totalsTableHTML').innerHTML = totalsTableHTML;
-    document.getElementById('amountInWords').innerText = numToWords(total);
-    document.getElementById('footerCreator').innerText = getActiveUser();
-}
+            <div style="display:flex; flex-wrap:wrap; gap:10px; margin:10px 0;">
+                <button class="btn-success" id="add-item-btn" style="width:auto;">➕ Add Item</button>
+            </div>
 
-// ...all your JS same until downloadPDF()...
+            <!-- Invoice Summary -->
+            <div id="invoice-summary" style="margin:15px 0;padding:15px;background:#f8f9fa;border-radius:8px;border-left:4px solid #007bff;">
+                <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                    <span><strong>Subtotal:</strong> <span id="subtotal">₦0.00</span></span>
+                    <span><strong>Total:</strong> <span id="grand-total">₦0.00</span></span>
+                    <span><strong>Items:</strong> <span id="item-count">0</span></span>
+                </div>
+            </div>
 
-function downloadPDF(){
-    try {
-        updatePreview();
-        saveInvoice(true);
-        
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        const logoData = localStorage.getItem('eby_logo');
-        const activeUser = getActiveUser();
-        
-        // ...pdf code same...
-        
-        let subtotal = items.reduce((a, b) => a + b.total, 0);
-        let vat = document.getElementById('vat').checked ? subtotal * 0.075 : 0;
-        let total = subtotal + vat;
+            <!-- Action Buttons -->
+            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:15px;">
+                <button id="create-invoice-btn" class="btn-success">📄 Create Invoice</button>
+                <button id="print-invoice-btn" class="btn-secondary">🖨️ Print</button>
+                <button id="clear-invoice-btn" class="btn-danger">🗑️ Clear</button>
+            </div>
+        </div>
 
-        let totalsBody = [['Subtotal', "NGN " + subtotal.toFixed(2)]]; // CHANGED
-        if(vat > 0) {
-            totalsBody.push(['VAT 7.5%', "NGN " + vat.toFixed(2)]); // CHANGED
-        }
-        totalsBody.push(['Total', "NGN " + total.toFixed(2)]); // CHANGED
+        <!-- ============================================
+        INVENTORY MANAGEMENT PANEL (Rendered by enhancer)
+        ============================================ -->
+        <div id="inventory-panel-placeholder"></div>
 
-        // ...rest of pdf code same...
-        
-        let filename = (document.getElementById('invNo').innerText || 'invoice').replace('#','');
-        doc.save(filename + '.pdf');
-    } catch(err) {
-        console.error("Error creating PDF document: ", err);
-        alert("Error: " + err.message);
-    }
-}
+    </div>
 
-// ...rest of JS same...
-</script>
+    <!-- ============================================
+    SCRIPTS
+    ============================================ -->
+
+    <!-- 1. Inventory Module (Database & Business Logic) -->
+    <script src="inventory-module.js"></script>
+
+    <!-- 2. Invoice Integration (Connects invoice to inventory) -->
+    <script src="inventory-integration.js"></script>
+
+    <!-- 3. Inventory Hook (Auto-detect invoices) -->
+    <script src="invoice-inventory-hook.js"></script>
+
+    <!-- 4. Inventory UI Enhancer (Management Panel) -->
+    <script src="inventory-enhancer.js"></script>
+
+    <!-- ============================================
+    INITIALIZATION SCRIPT
+    ============================================ -->
+    <script>
+        (function() {
+            'use strict';
+
+            // Wait for DOM
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('🚀 Eby-Gold Invoice System loaded');
+                
+                // Set current date
+                const dateEl = document.getElementById('invoice-date');
+                if (dateEl) {
+                    const now = new Date();
+                    dateEl.textContent = now.toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                    });
+                }
+
+                // Set invoice number prefix
+                const invNumEl = document.getElementById('invoice-number');
+                if (invNumEl) {
+                    const prefix = 'EGS-INV-';
+                    const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+                    invNumEl.textContent = '#' + prefix + random;
+                }
+
+                // ============================================
+                // INVOICE ITEM FUNCTIONS
+                // ============================================
+                const tbody = document.getElementById('invoice-items-body');
+                const addBtn = document.getElementById('add-item-btn');
+                const clearBtn = document.getElementById('clear-invoice-btn');
+
+                // Add item row
+                function addItemRow(data) {
+                    const rowCount = tbody.children.length + 1;
+                    const row = document.createElement('tr');
+                    row.className = 'item-row';
+                    row.innerHTML = `
+                        <td class="sn">${rowCount}</td>
+                        <td style="position:relative;">
+                            <input type="text" class="item-name" placeholder="Search or enter product..." autocomplete="off" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;">
+                            <div class="autocomplete-list" style="display:none;position:absolute;background:white;border:1px solid #ddd;border-radius:4px;max-height:200px;overflow-y:auto;z-index:1000;min-width:200px;box-shadow:0 4px 8px rgba(0,0,0,0.1);"></div>
+                        </td>
+                        <td><input type="number" class="item-qty" value="${data ? data.qty : 1}" min="1" style="width:70px;padding:8px;border:1px solid #ddd;border-radius:4px;"></td>
+                        <td><input type="number" class="item-rate" step="0.01" value="${data ? data.rate : 0}" style="width:100px;padding:8px;border:1px solid #ddd;border-radius:4px;"></td>
+                        <td class="item-total">₦0.00</td>
+                        <td><button class="remove-item" style="background:none;color:#dc3545;border:none;font-size:18px;cursor:pointer;width:auto;">✕</button></td>
+                    `;
+                    tbody.appendChild(row);
+                    updateRowNumbers();
+                    updateTotals();
+                    
+                    if (data && data.name) {
+                        const nameInput = row.querySelector('.item-name');
+                        if (nameInput) nameInput.value = data.name;
+                    }
+                    
+                    return row;
+                }
+
+                // Update row numbers
+                function updateRowNumbers() {
+                    tbody.querySelectorAll('.item-row').forEach((row, index) => {
+                        const sn = row.querySelector('.sn');
+                        if (sn) sn.textContent = index + 1;
+                    });
+                }
+
+                // Calculate row total
+                function calculateRowTotal(row) {
+                    const qtyInput = row.querySelector('.item-qty');
+                    const rateInput = row.querySelector('.item-rate');
+                    const totalCell = row.querySelector('.item-total');
+                    
+                    const qty = parseFloat(qtyInput.value) || 0;
+                    const rate = parseFloat(rateInput.value) || 0;
+                    const total = qty * rate;
+                    
+                    totalCell.textContent = `₦${total.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    })}`;
+                    
+                    return total;
+                }
+
+                // Update totals
+                function updateTotals() {
+                    let subtotal = 0;
+                    let itemCount = 0;
+                    
+                    tbody.querySelectorAll('.item-row').forEach(row => {
+                        const qtyInput = row.querySelector('.item-qty');
+                        const rateInput = row.querySelector('.item-rate');
+                        
+                        const qty = parseFloat(qtyInput.value) || 0;
+                        const rate = parseFloat(rateInput.value) || 0;
+                        const total = qty * rate;
+                        
+                        if (total > 0) {
+                            subtotal += total;
+                            itemCount++;
+                        }
+                    });
+                    
+                    const subtotalEl = document.getElementById('subtotal');
+                    const grandTotalEl = document.getElementById('grand-total');
+                    const itemCountEl = document.getElementById('item-count');
+                    
+                    if (subtotalEl) subtotalEl.textContent = `₦${subtotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    if (grandTotalEl) grandTotalEl.textContent = `₦${subtotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    if (itemCountEl) itemCountEl.textContent = itemCount;
+                }
+
+                // Get invoice data
+                function getInvoiceData() {
+                    const items = [];
+                    tbody.querySelectorAll('.item-row').forEach(row => {
+                        const nameInput = row.querySelector('.item-name');
+                        const qtyInput = row.querySelector('.item-qty');
+                        const rateInput = row.querySelector('.item-rate');
+                        
+                        const name = nameInput ? nameInput.value.trim() : '';
+                        const qty = parseFloat(qtyInput ? qtyInput.value : 0) || 0;
+                        const rate = parseFloat(rateInput ? rateInput.value : 0) || 0;
+                        
+                        if (name && qty > 0) {
+                            items.push({
+                                name: name,
+                                qty: qty,
+                                rate: rate,
+                                total: qty * rate,
+                                productId: nameInput ? nameInput.dataset.productId || null : null
+                            });
+                        }
+                    });
+                    
+                    const invNumEl = document.getElementById('invoice-number');
+                    const invoiceNumber = invNumEl ? invNumEl.textContent.replace('#', '') : 'EGS-INV-';
+                    
+                    const customerName = document.getElementById('customer-name');
+                    const customerPhone = document.getElementById('customer-phone');
+                    const customerAddress = document.getElementById('customer-address');
+                    
+                    return {
+                        invoiceNumber: invoiceNumber,
+                        date: new Date().toISOString().split('T')[0],
+                        customer: {
+                            name: customerName ? customerName.value.trim() : '',
+                            phone: customerPhone ? customerPhone.value.trim() : '',
+                            address: customerAddress ? customerAddress.value.trim() : ''
+                        },
+                        items: items,
+                        subtotal: items.reduce((sum, item) => sum + item.total, 0),
+                        total: items.reduce((sum, item) => sum + item.total, 0),
+                        currency: 'NGN'
+                    };
+                }
+
+                // ============================================
+                // EVENT LISTENERS
+                // ============================================
+
+                // Add item button
+                if (addBtn) {
+                    addBtn.addEventListener('click', function() {
+                        addItemRow();
+                    });
+                }
+
+                // Clear all items
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', function() {
+                        if (confirm('Clear all items?')) {
+                            tbody.innerHTML = '';
+                            addItemRow();
+                            updateTotals();
+                        }
+                    });
+                }
+
+                // Row events (delegation)
+                tbody.addEventListener('input', function(e) {
+                    const row = e.target.closest('.item-row');
+                    if (!row) return;
+                    
+                    if (e.target.classList.contains('item-qty') || e.target.classList.contains('item-rate')) {
+                        calculateRowTotal(row);
+                        updateTotals();
+                    }
+                });
+
+                tbody.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('remove-item') || e.target.closest('.remove-item')) {
+                        const btn = e.target.closest('.remove-item');
+                        const row = btn.closest('.item-row');
+                        if (tbody.children.length > 1) {
+                            row.remove();
+                            updateRowNumbers();
+                            updateTotals();
+                        } else {
+                            alert('Cannot remove the last row. Clear the fields instead.');
+                        }
+                    }
+                });
+
+                // ============================================
+                // CREATE INVOICE
+                // ============================================
+                const createBtn = document.getElementById('create-invoice-btn');
+                if (createBtn) {
+                    createBtn.addEventListener('click', function() {
+                        const invoiceData = getInvoiceData();
+                        
+                        if (invoiceData.items.length === 0) {
+                            alert('Please add at least one item to the invoice.');
+                            return;
+                        }
+                        
+                        console.log('📄 Invoice created:', invoiceData);
+                        alert(`✅ Invoice ${invoiceData.invoiceNumber} created successfully!\nTotal: ₦${invoiceData.total.toLocaleString()}`);
+                        
+                        // Dispatch event for inventory hook
+                        document.dispatchEvent(new CustomEvent('invoice-created', {
+                            detail: invoiceData
+                        }));
+                        
+                        // Ask to print
+                        if (confirm('Would you like to print this invoice?')) {
+                            window.print();
+                        }
+                    });
+                }
+
+                // ============================================
+                // PRINT INVOICE
+                // ============================================
+                const printBtn = document.getElementById('print-invoice-btn');
+                if (printBtn) {
+                    printBtn.addEventListener('click', function() {
+                        window.print();
+                    });
+                }
+
+                // ============================================
+                // SEED TEST DATA (if no products exist)
+                // ============================================
+                setTimeout(async function() {
+                    if (window.__inventory && window.__inventory.manager) {
+                        const manager = window.__inventory.manager;
+                        const products = await manager.getAllProducts();
+                        if (products.length === 0) {
+                            const sampleProducts = [
+                                { name: 'Hand Wash', category: 'Cleaning', unitPriceUSD: 1.00, initialStock: 20 },
+                                { name: 'Morning Fresh - Big', category: 'Cleaning', unitPriceUSD: 1.88, initialStock: 15 },
+                                { name: 'Rose Tissue Paper (bag)', category: 'Household', unitPriceUSD: 7.50, initialStock: 30 },
+                                { name: 'Air Freshner', category: 'Household', unitPriceUSD: 1.31, initialStock: 12 },
+                                { name: 'Harpic Toilet Wash', category: 'Cleaning', unitPriceUSD: 2.81, initialStock: 8 },
+                                { name: 'Insecticide', category: 'Household', unitPriceUSD: 0.31, initialStock: 25 },
+                                { name: 'Toothpaste', category: 'Personal Care', unitPriceUSD: 0.04, initialStock: 100 },
+                                { name: 'Chairs', category: 'Furniture', unitPriceUSD: 0.33, initialStock: 50 },
+                                { name: 'Tables', category: 'Furniture', unitPriceUSD: 3.13, initialStock: 20 }
+                            ];
+                            
+                            for (const product of sampleProducts) {
+                                try {
+                                    await manager.createProduct(product);
+                                    console.log(`✅ Seeded: ${product.name}`);
+                                } catch(e) {
+                                    // Skip if already exists
+                                }
+                            }
+                            console.log('✅ Sample products seeded!');
+                        }
+                    }
+                }, 3000);
+
+                console.log('✅ Invoice system ready');
+                console.log('📚 Commands:');
+                console.log('  - getInvoiceData() - Get current invoice data');
+                console.log('  - addItemRow(data) - Add an item row');
+                console.log('  - window.__inventory - Access inventory');
+
+                // Expose functions globally
+                window.getInvoiceData = getInvoiceData;
+                window.addItemRow = addItemRow;
+
+            });
+        })();
+    </script>
+
 </body>
 </html>
-<!-- Add before closing </body> tag -->
-<script src="inventory-module.js"></script>
-<script src="inventory-integration.js"></script>
-<script src="inventory-enhancer.js"></script>
-/* Mobile-friendly inventory integration */
-@media (max-width: 768px) {
-    .item-row {
-        display: grid;
-        grid-template-columns: 30px 1fr 60px 80px 80px 30px;
-        gap: 4px;
-        padding: 4px 0;
-        border-bottom: 1px solid #eee;
-    }
-    
-    .item-row td {
-        padding: 2px !important;
-    }
-    
-    .item-row input {
-        width: 100% !important;
-        padding: 4px !important;
-        font-size: 14px !important;
-    }
-    
-    .item-row .item-name {
-        width: 100% !important;
-    }
-    
-    .autocomplete-list {
-        max-height: 150px !important;
-        font-size: 14px !important;
-    }
-    
-    #invoice-summary {
-        font-size: 14px;
-        padding: 10px !important;
-    }
-    
-    #customer-db-integration > div {
-        flex-direction: column !important;
-    }
-    
-    #customer-db-integration input {
-        font-size: 16px !important; /* Prevents zoom on iOS */
-    }
-}
