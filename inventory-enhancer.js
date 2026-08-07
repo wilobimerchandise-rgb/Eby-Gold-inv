@@ -1,44 +1,6 @@
 // ============================================
-// CURRENCY CONFIGURATION
-// ============================================
-const CURRENCY_CONFIG = {
-    // Base currency for inventory (what products are priced in)
-    baseCurrency: 'USD',
-    
-    // Display currency for invoices (what customers see)
-    displayCurrency: 'NGN',
-    
-    // Exchange rate (NGN per 1 USD) - Update this regularly!
-    exchangeRate: 1600, // As of August 2026
-    
-    // Currency symbols
-    symbols: {
-        USD: '$',
-        NGN: '₦'
-    }
-};
-
-// Helper function to format currency
-function formatCurrency(amount, currency = CURRENCY_CONFIG.displayCurrency) {
-    const symbol = CURRENCY_CONFIG.symbols[currency] || currency;
-    const formatted = amount.toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-    return `${symbol}${formatted}`;
-}
-
-// Convert USD to NGN
-function usdToNgn(usdAmount) {
-    return usdAmount * CURRENCY_CONFIG.exchangeRate;
-}
-
-// Convert NGN to USD
-function ngnToUsd(ngnAmount) {
-    return ngnAmount / CURRENCY_CONFIG.exchangeRate;
-}// ============================================
 // EBY-GOLD INVENTORY ENHANCER
-// Drop-in module - No code changes needed!
+// Complete UI Panel with Customer Tab
 // ============================================
 
 (function() {
@@ -48,891 +10,958 @@ function ngnToUsd(ngnAmount) {
     // CONFIGURATION
     // ============================================
     const CONFIG = {
-        DB_NAME: 'EbyGoldInventoryDB',
-        DB_VERSION: 2,
         LOW_STOCK_THRESHOLD: 10,
-        CURRENCY: 'NGN',
-        INVOICE_TABLE_SELECTOR: 'table', // Will auto-detect your invoice table
-        BANK_DETAILS: {
-            bank: 'UBA',
-            accountNo: '2189015307',
-            accountName: 'Ebere Favour Akalola'
-        }
+        EXCHANGE_RATE: 1600
     };
 
     // ============================================
-    // INVENTORY DATABASE (IndexedDB)
+    // UI CLASS
     // ============================================
-    class InventoryDB {
-        constructor() {
-            this.db = null;
-            this.isReady = false;
-        }
-
-        async init() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(CONFIG.DB_NAME, CONFIG.DB_VERSION);
-
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-                    
-                    // Products store
-                    if (!db.objectStoreNames.contains('products')) {
-                        const productStore = db.createObjectStore('products', { 
-                            keyPath: 'id', 
-                            autoIncrement: true 
-                        });
-                        productStore.createIndex('sku', 'sku', { unique: true });
-                        productStore.createIndex('name', 'name');
-                        productStore.createIndex('category', 'category');
-                    }
-
-                    // Inventory store
-                    if (!db.objectStoreNames.contains('inventory')) {
-                        const invStore = db.createObjectStore('inventory', { 
-                            keyPath: 'productId' 
-                        });
-                        invStore.createIndex('quantity', 'quantity');
-                    }
-
-                    // Stock movements store
-                    if (!db.objectStoreNames.contains('stockMovements')) {
-                        const moveStore = db.createObjectStore('stockMovements', { 
-                            keyPath: 'id', 
-                            autoIncrement: true 
-                        });
-                        moveStore.createIndex('productId', 'productId');
-                        moveStore.createIndex('timestamp', 'timestamp');
-                        moveStore.createIndex('type', 'type');
-                    }
-
-                    // Invoice history store (track which invoices used which stock)
-                    if (!db.objectStoreNames.contains('invoiceHistory')) {
-                        const invHistStore = db.createObjectStore('invoiceHistory', { 
-                            keyPath: 'invoiceNumber' 
-                        });
-                        invHistStore.createIndex('date', 'date');
-                    }
-                };
-
-                request.onsuccess = (event) => {
-                    this.db = event.target.result;
-                    this.isReady = true;
-                    console.log('📦 Inventory DB ready');
-                    resolve();
-                };
-
-                request.onerror = (event) => {
-                    console.error('❌ DB init failed:', event.target.error);
-                    reject(event.target.error);
-                };
-            });
-        }
-
-        async add(storeName, data) {
-            return new Promise((resolve, reject) => {
-                const tx = this.db.transaction([storeName], 'readwrite');
-                const store = tx.objectStore(storeName);
-                const request = store.add(data);
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        async get(storeName, id) {
-            return new Promise((resolve, reject) => {
-                const tx = this.db.transaction([storeName], 'readonly');
-                const store = tx.objectStore(storeName);
-                const request = store.get(id);
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        async getAll(storeName) {
-            return new Promise((resolve, reject) => {
-                const tx = this.db.transaction([storeName], 'readonly');
-                const store = tx.objectStore(storeName);
-                const request = store.getAll();
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        async update(storeName, data) {
-            return new Promise((resolve, reject) => {
-                const tx = this.db.transaction([storeName], 'readwrite');
-                const store = tx.objectStore(storeName);
-                const request = store.put(data);
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        async delete(storeName, id) {
-            return new Promise((resolve, reject) => {
-                const tx = this.db.transaction([storeName], 'readwrite');
-                const store = tx.objectStore(storeName);
-                const request = store.delete(id);
-                request.onsuccess = () => resolve();
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        async query(storeName, indexName, value) {
-            return new Promise((resolve, reject) => {
-                const tx = this.db.transaction([storeName], 'readonly');
-                const store = tx.objectStore(storeName);
-                const index = store.index(indexName);
-                const request = index.getAll(value);
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        async searchProducts(query) {
-            const all = await this.getAll('products');
-            const q = query.toLowerCase();
-            return all.filter(p => 
-                p.name.toLowerCase().includes(q) ||
-                (p.sku && p.sku.toLowerCase().includes(q)) ||
-                (p.category && p.category.toLowerCase().includes(q))
-            );
-        }
-    }
-
-    // ============================================
-    // INVENTORY MANAGER
-    // ============================================
-    class InventoryManager {
-        constructor(db) {
-            this.db = db;
-        }
-
-        async createProduct(data) {
-            if (!data.name) throw new Error('Product name is required');
-            
-            // Check for duplicate name
-            const existing = await this.db.query('products', 'name', data.name);
-            if (existing.length > 0) {
-                throw new Error(`Product "${data.name}" already exists`);
-            }
-
-            const product = {
-                name: data.name,
-                sku: data.sku || this.generateSKU(data.name),
-                category: data.category || 'General',
-                unitPrice: data.unitPrice || 0,
-                costPrice: data.costPrice || 0,
-                barcode: data.barcode || '',
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-            };
-
-            const id = await this.db.add('products', product);
-            
-            // Initialize inventory
-            await this.db.add('inventory', {
-                productId: id,
-                quantity: data.initialStock || 0,
-                lowThreshold: CONFIG.LOW_STOCK_THRESHOLD,
-                lastUpdated: new Date().toISOString()
-            });
-
-            return id;
-        }
-
-        generateSKU(name) {
-            const prefix = name.substring(0, 3).toUpperCase();
-            const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-            return `${prefix}-${random}`;
-        }
-
-        async getAllProducts() {
-            return await this.db.getAll('products');
-        }
-
-        async getProductWithStock(productId) {
-            const product = await this.db.get('products', productId);
-            if (!product) return null;
-            const inv = await this.db.query('inventory', 'productId', productId);
-            return {
-                ...product,
-                quantity: inv.length > 0 ? inv[0].quantity : 0,
-                lowThreshold: inv.length > 0 ? inv[0].lowThreshold : CONFIG.LOW_STOCK_THRESHOLD
-            };
-        }
-
-        async getProductByName(name) {
-            const products = await this.db.query('products', 'name', name);
-            if (products.length === 0) return null;
-            return await this.getProductWithStock(products[0].id);
-        }
-
-        async updateStock(productId, quantityChange, type, note = '', invoiceNumber = '') {
-            const invRecords = await this.db.query('inventory', 'productId', productId);
-            if (invRecords.length === 0) {
-                throw new Error('Inventory record not found');
-            }
-
-            const inv = invRecords[0];
-            const newQuantity = inv.quantity + quantityChange;
-            if (newQuantity < 0) {
-                throw new Error('Insufficient stock');
-            }
-
-            inv.quantity = newQuantity;
-            inv.lastUpdated = new Date().toISOString();
-            await this.db.update('inventory', inv);
-
-            // Log movement
-            await this.db.add('stockMovements', {
-                productId: productId,
-                quantity: quantityChange,
-                type: type,
-                note: note,
-                invoiceNumber: invoiceNumber,
-                timestamp: new Date().toISOString()
-            });
-
-            // Check low stock
-            if (newQuantity < CONFIG.LOW_STOCK_THRESHOLD) {
-                this.showAlert(`⚠️ Low stock alert: Product ID ${productId} has ${newQuantity} units left`);
-            }
-
-            return newQuantity;
-        }
-
-        async deductStockForInvoice(invoiceNumber, items) {
-            const results = [];
-            for (const item of items) {
-                try {
-                    const product = await this.getProductByName(item.name);
-                    if (!product) {
-                        // Product not in inventory - auto-create it
-                        const newId = await this.createProduct({
-                            name: item.name,
-                            unitPrice: item.rate,
-                            initialStock: 0
-                        });
-                        results.push({ 
-                            productName: item.name, 
-                            status: 'created', 
-                            newProductId: newId 
-                        });
-                        continue;
-                    }
-
-                    const newQty = await this.updateStock(
-                        product.id,
-                        -item.qty,
-                        'sale',
-                        `Invoice ${invoiceNumber}`,
-                        invoiceNumber
-                    );
-                    results.push({ 
-                        productName: item.name, 
-                        status: 'deducted', 
-                        remaining: newQty 
-                    });
-                } catch (error) {
-                    results.push({ 
-                        productName: item.name, 
-                        status: 'error', 
-                        error: error.message 
-                    });
-                }
-            }
-            return results;
-        }
-
-        async getLowStockProducts() {
-            const allInv = await this.db.getAll('inventory');
-            const low = allInv.filter(i => i.quantity < CONFIG.LOW_STOCK_THRESHOLD);
-            const products = [];
-            for (const inv of low) {
-                const product = await this.db.get('products', inv.productId);
-                if (product) {
-                    products.push({ ...product, quantity: inv.quantity });
-                }
-            }
-            return products;
-        }
-
-        showAlert(message) {
-            // Try to use your app's notification system, or fallback to alert
-            if (window.showNotification) {
-                window.showNotification(message, 'warning');
-            } else {
-                // Create a friendly toast notification
-                const toast = document.createElement('div');
-                toast.style.cssText = `
-                    position: fixed;
-                    bottom: 20px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: #ff9800;
-                    color: white;
-                    padding: 12px 24px;
-                    border-radius: 8px;
-                    z-index: 99999;
-                    font-family: Arial, sans-serif;
-                    font-size: 14px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                    animation: slideUp 0.3s ease;
-                    max-width: 90%;
-                `;
-                toast.textContent = message;
-                document.body.appendChild(toast);
-                setTimeout(() => {
-                    toast.style.opacity = '0';
-                    toast.style.transition = 'opacity 0.3s';
-                    setTimeout(() => toast.remove(), 300);
-                }, 5000);
-            }
-        }
-    }
-
-    // ============================================
-    // INVOICE DETECTOR & ENHANCER
-    // ============================================
-    class InvoiceEnhancer {
+    class InventoryUI {
         constructor(manager) {
             this.manager = manager;
-            this.invoiceNumber = '';
-            this.items = [];
+            this.currentView = 'products';
+            this.container = null;
         }
 
-        detectInvoice() {
-            // Try to find the invoice number
-            const docNoElements = document.querySelectorAll('*');
-            for (const el of docNoElements) {
-                if (el.textContent && el.textContent.includes('DOCUMENT NO:')) {
-                    const match = el.textContent.match(/DOCUMENT NO:\s*(#?[\w-]+)/);
-                    if (match) {
-                        this.invoiceNumber = match[1];
-                        break;
+        injectStyles() {
+            const styleId = 'eby-inventory-styles';
+            if (document.getElementById(styleId)) return;
+
+            const styles = `
+                #eby-inventory-module {
+                    font-family: system-ui, -apple-system, sans-serif;
+                    max-width: 1200px;
+                    margin: 20px auto;
+                    padding: 20px;
+                    color: #333;
+                }
+                #eby-inventory-module .header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 20px;
+                    padding-bottom: 10px;
+                    border-bottom: 2px solid #e0e0e0;
+                    flex-wrap: wrap;
+                    gap: 10px;
+                }
+                #eby-inventory-module .header h2 {
+                    margin: 0;
+                    color: #2c3e50;
+                }
+                #eby-inventory-module .nav-tabs {
+                    display: flex;
+                    gap: 10px;
+                    margin-bottom: 20px;
+                    flex-wrap: wrap;
+                }
+                #eby-inventory-module .nav-tabs button {
+                    padding: 8px 16px;
+                    border: 1px solid #ddd;
+                    background: #f8f9fa;
+                    cursor: pointer;
+                    border-radius: 4px;
+                    transition: all 0.2s;
+                }
+                #eby-inventory-module .nav-tabs button:hover {
+                    background: #e9ecef;
+                }
+                #eby-inventory-module .nav-tabs button.active {
+                    background: #007bff;
+                    color: white;
+                    border-color: #007bff;
+                }
+                #eby-inventory-module .view-container {
+                    background: white;
+                    padding: 20px;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    min-height: 300px;
+                }
+                #eby-inventory-module .search-bar {
+                    display: flex;
+                    gap: 10px;
+                    margin-bottom: 15px;
+                    flex-wrap: wrap;
+                }
+                #eby-inventory-module .search-bar input {
+                    flex: 1;
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    min-width: 150px;
+                }
+                #eby-inventory-module .search-bar button {
+                    padding: 8px 16px;
+                    background: #28a745;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                }
+                #eby-inventory-module .search-bar button:hover {
+                    background: #218838;
+                }
+                #eby-inventory-module table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                #eby-inventory-module th, #eby-inventory-module td {
+                    padding: 10px 12px;
+                    text-align: left;
+                    border-bottom: 1px solid #eee;
+                }
+                #eby-inventory-module th {
+                    background: #f8f9fa;
+                    font-weight: 600;
+                }
+                #eby-inventory-module .badge {
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+                #eby-inventory-module .badge-danger {
+                    background: #dc3545;
+                    color: white;
+                }
+                #eby-inventory-module .badge-warning {
+                    background: #ffc107;
+                    color: #333;
+                }
+                #eby-inventory-module .badge-success {
+                    background: #28a745;
+                    color: white;
+                }
+                #eby-inventory-module .modal-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0,0,0,0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 9999;
+                }
+                #eby-inventory-module .modal-content {
+                    background: white;
+                    padding: 30px;
+                    border-radius: 8px;
+                    max-width: 500px;
+                    width: 90%;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                }
+                #eby-inventory-module .form-group {
+                    margin-bottom: 15px;
+                }
+                #eby-inventory-module .form-group label {
+                    display: block;
+                    margin-bottom: 5px;
+                    font-weight: 500;
+                }
+                #eby-inventory-module .form-group input,
+                #eby-inventory-module .form-group select,
+                #eby-inventory-module .form-group textarea {
+                    width: 100%;
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 14px;
+                }
+                #eby-inventory-module .form-actions {
+                    display: flex;
+                    gap: 10px;
+                    justify-content: flex-end;
+                    margin-top: 20px;
+                }
+                #eby-inventory-module .form-actions button {
+                    padding: 8px 20px;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                }
+                #eby-inventory-module .btn-primary {
+                    background: #007bff;
+                    color: white;
+                }
+                #eby-inventory-module .btn-primary:hover {
+                    background: #0056b3;
+                }
+                #eby-inventory-module .btn-secondary {
+                    background: #6c757d;
+                    color: white;
+                }
+                #eby-inventory-module .btn-secondary:hover {
+                    background: #5a6268;
+                }
+                #eby-inventory-module .btn-danger {
+                    background: #dc3545;
+                    color: white;
+                }
+                #eby-inventory-module .btn-danger:hover {
+                    background: #c82333;
+                }
+                #eby-inventory-module .btn-success {
+                    background: #28a745;
+                    color: white;
+                }
+                #eby-inventory-module .btn-success:hover {
+                    background: #218838;
+                }
+                #eby-inventory-module .alert {
+                    padding: 12px 16px;
+                    border-radius: 4px;
+                    margin-bottom: 15px;
+                }
+                #eby-inventory-module .alert-danger {
+                    background: #f8d7da;
+                    color: #721c24;
+                    border: 1px solid #f5c6cb;
+                }
+                #eby-inventory-module .alert-success {
+                    background: #d4edda;
+                    color: #155724;
+                    border: 1px solid #c3e6cb;
+                }
+                #eby-inventory-module .alert-info {
+                    background: #d1ecf1;
+                    color: #0c5460;
+                    border: 1px solid #bee5eb;
+                }
+                #eby-inventory-module .stock-low {
+                    color: #dc3545;
+                    font-weight: 600;
+                }
+                #eby-inventory-module .stock-ok {
+                    color: #28a745;
+                }
+                #eby-inventory-module .float-btn {
+                    position: fixed;
+                    bottom: 30px;
+                    right: 30px;
+                    width: 60px;
+                    height: 60px;
+                    border-radius: 50%;
+                    background: #007bff;
+                    color: white;
+                    border: none;
+                    font-size: 28px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                    cursor: pointer;
+                    z-index: 9998;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.3s;
+                }
+                #eby-inventory-module .float-btn:hover {
+                    transform: scale(1.1);
+                }
+                @media (max-width: 768px) {
+                    #eby-inventory-module {
+                        padding: 10px;
+                    }
+                    #eby-inventory-module .nav-tabs button {
+                        flex: 1;
+                        min-width: 60px;
+                        font-size: 12px;
+                        padding: 6px 10px;
+                    }
+                    #eby-inventory-module table {
+                        font-size: 12px;
+                    }
+                    #eby-inventory-module th, #eby-inventory-module td {
+                        padding: 6px 8px;
+                    }
+                    #eby-inventory-module .modal-content {
+                        padding: 20px;
+                    }
+                    #eby-inventory-module .float-btn {
+                        width: 50px;
+                        height: 50px;
+                        font-size: 22px;
+                        bottom: 20px;
+                        right: 20px;
                     }
                 }
-            }
-
-            // If not found, try other patterns
-            if (!this.invoiceNumber) {
-                const text = document.body.textContent;
-                const match = text.match(/#?EGS-INV-[\d]+/);
-                if (match) {
-                    this.invoiceNumber = match[0];
-                }
-            }
-
-            console.log('📄 Detected Invoice:', this.invoiceNumber);
-            return this.invoiceNumber;
-        }
-
-        extractItems() {
-            const items = [];
-            
-            // Method 1: Look for the table structure from your screenshot
-            // Find any table with item data
-            const tables = document.querySelectorAll('table');
-            for (const table of tables) {
-                const rows = table.querySelectorAll('tr');
-                let isItemTable = false;
-                let headers = [];
-
-                // Check if this is the item table by looking for headers
-                const headerRow = rows[0];
-                if (headerRow) {
-                    const cells = headerRow.querySelectorAll('th, td');
-                    const headerTexts = Array.from(cells).map(c => c.textContent.trim());
-                    // Look for S/N, Items, Qty, Rate, Total
-                    if (headerTexts.some(h => /S\/N|#|No/.test(h)) &&
-                        headerTexts.some(h => /Item|Product|Description/.test(h)) &&
-                        headerTexts.some(h => /Qty|Quantity/.test(h)) &&
-                        headerTexts.some(h => /Rate|Price/.test(h)) &&
-                        headerTexts.some(h => /Total|Amount/.test(h))) {
-                        isItemTable = true;
-                        headers = headerTexts;
-                    }
-                }
-
-                if (isItemTable) {
-                    // Parse data rows (skip header)
-                    for (let i = 1; i < rows.length; i++) {
-                        const cells = rows[i].querySelectorAll('td');
-                        if (cells.length >= 4) {
-                            const itemName = cells[1] ? cells[1].textContent.trim() : '';
-                            const qty = parseFloat(cells[2] ? cells[2].textContent.replace(/,/g, '') : '0');
-                            const rate = parseFloat(cells[3] ? cells[3].textContent.replace(/,/g, '').replace(/[A-Za-z\s]/g, '') : '0');
-                            const total = parseFloat(cells[4] ? cells[4].textContent.replace(/,/g, '').replace(/[A-Za-z\s]/g, '') : '0');
-                            
-                            if (itemName && !isNaN(qty) && qty > 0) {
-                                items.push({
-                                    name: itemName,
-                                    qty: qty,
-                                    rate: rate,
-                                    total: total
-                                });
-                            }
-                        }
-                    }
-                    break;
-                }
-            }
-
-            // Method 2: Fallback - look for the specific items from your screenshot
-            if (items.length === 0) {
-                // Look for known item patterns in the text
-                const text = document.body.textContent;
-                const lines = text.split('\n');
-                let foundItems = false;
-                
-                for (const line of lines) {
-                    // Try to parse lines like: "1   Insecticide    15   NGN 500    NGN 7,500"
-                    const match = line.match(/(\d+)\s+([A-Za-z\s]+?)\s+([\d,]+)\s+[A-Za-z]*\s*([\d,.]+)\s+[A-Za-z]*\s*([\d,.]+)/);
-                    if (match) {
-                        const name = match[2].trim();
-                        const qty = parseFloat(match[3].replace(/,/g, ''));
-                        const rate = parseFloat(match[4].replace(/,/g, ''));
-                        const total = parseFloat(match[5].replace(/,/g, ''));
-                        items.push({ name, qty, rate, total });
-                        foundItems = true;
-                    }
-                }
-
-                // If still no items, try a simpler pattern
-                if (!foundItems) {
-                    const itemMatches = text.match(/([A-Za-z][A-Za-z\s]+?)\s+([\d,]+)\s+[A-Za-z]*\s*([\d,.]+)/g);
-                    if (itemMatches) {
-                        for (const m of itemMatches) {
-                            const parts = m.match(/([A-Za-z][A-Za-z\s]+?)\s+([\d,]+)\s+[A-Za-z]*\s*([\d,.]+)/);
-                            if (parts) {
-                                const name = parts[1].trim();
-                                const qty = parseFloat(parts[2].replace(/,/g, ''));
-                                const rate = parseFloat(parts[3].replace(/,/g, ''));
-                                if (name && !isNaN(qty) && qty > 0) {
-                                    items.push({ name, qty, rate, total: qty * rate });
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            this.items = items;
-            console.log('📊 Extracted items:', items);
-            return items;
-        }
-
-        addInventoryBadges() {
-            // Add stock badges to the item table
-            const tables = document.querySelectorAll('table');
-            for (const table of tables) {
-                const rows = table.querySelectorAll('tr');
-                let headerRow = rows[0];
-                if (headerRow) {
-                    const cells = headerRow.querySelectorAll('th, td');
-                    const headerTexts = Array.from(cells).map(c => c.textContent.trim());
-                    
-                    if (headerTexts.some(h => /Item|Product/.test(h))) {
-                        // Add a "Stock" column header if not exists
-                        if (!headerTexts.some(h => /Stock|Inv/.test(h))) {
-                            const newHeader = document.createElement('th');
-                            newHeader.textContent = 'Stock';
-                            newHeader.style.cssText = 'background: #f8f9fa; text-align: center;';
-                            headerRow.appendChild(newHeader);
-                        }
-
-                        // Add stock data to each row
-                        for (let i = 1; i < rows.length; i++) {
-                            const row = rows[i];
-                            const cells = row.querySelectorAll('td');
-                            if (cells.length >= 2) {
-                                const itemName = cells[1] ? cells[1].textContent.trim() : '';
-                                const stockCell = document.createElement('td');
-                                stockCell.style.cssText = 'text-align: center; font-weight: bold;';
-                                
-                                if (itemName) {
-                                    this.manager.getProductByName(itemName).then(product => {
-                                        if (product) {
-                                            const qty = product.quantity || 0;
-                                            stockCell.textContent = qty;
-                                            stockCell.style.color = qty < CONFIG.LOW_STOCK_THRESHOLD ? '#dc3545' : '#28a745';
-                                        } else {
-                                            stockCell.textContent = '❌';
-                                            stockCell.title = 'Not in inventory';
-                                        }
-                                    }).catch(() => {
-                                        stockCell.textContent = '?';
-                                    });
-                                } else {
-                                    stockCell.textContent = '-';
-                                }
-                                row.appendChild(stockCell);
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
-        addInventoryFooter() {
-            // Add inventory summary below the invoice
-            const invoiceContainer = this.findInvoiceContainer();
-            if (!invoiceContainer) return;
-
-            const summaryDiv = document.createElement('div');
-            summaryDiv.id = 'inventory-summary';
-            summaryDiv.style.cssText = `
-                margin-top: 20px;
-                padding: 15px;
-                background: #f8f9fa;
-                border-radius: 8px;
-                font-family: Arial, sans-serif;
-                font-size: 14px;
-                border-left: 4px solid #007bff;
             `;
 
-            // Check stock status for each item
-            const statusPromises = this.items.map(async (item) => {
-                const product = await this.manager.getProductByName(item.name);
-                if (product) {
-                    const available = product.quantity || 0;
-                    const status = available >= item.qty ? '✅ Sufficient' : '⚠️ Insufficient';
-                    return {
-                        name: item.name,
-                        required: item.qty,
-                        available: available,
-                        status: status,
-                        ok: available >= item.qty
-                    };
-                } else {
-                    return {
-                        name: item.name,
-                        required: item.qty,
-                        available: 0,
-                        status: '❌ Not in inventory',
-                        ok: false
-                    };
-                }
-            });
-
-            Promise.all(statusPromises).then(statuses => {
-                const allOk = statuses.every(s => s.ok);
-                
-                let html = `<h4 style="margin: 0 0 10px 0;">📦 Inventory Status</h4>`;
-                html += `<table style="width:100%; border-collapse: collapse; font-size: 13px;">`;
-                html += `<tr style="background: #e9ecef;">
-                            <th style="padding: 5px 10px; text-align: left;">Item</th>
-                            <th style="padding: 5px 10px; text-align: center;">Required</th>
-                            <th style="padding: 5px 10px; text-align: center;">Available</th>
-                            <th style="padding: 5px 10px; text-align: center;">Status</th>
-                        </tr>`;
-                
-                for (const s of statuses) {
-                    const color = s.ok ? '#28a745' : '#dc3545';
-                    html += `<tr>
-                                <td style="padding: 5px 10px;">${s.name}</td>
-                                <td style="padding: 5px 10px; text-align: center;">${s.required}</td>
-                                <td style="padding: 5px 10px; text-align: center; color: ${s.available < CONFIG.LOW_STOCK_THRESHOLD ? '#dc3545' : '#28a745'};">${s.available}</td>
-                                <td style="padding: 5px 10px; text-align: center; color: ${color};">${s.status}</td>
-                            </tr>`;
-                }
-                
-                html += `</table>`;
-                html += `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #dee2e6;">
-                            ${allOk ? '✅ All items have sufficient stock' : '⚠️ Some items need restocking'}
-                         </div>`;
-
-                // Add auto-deduct button
-                if (this.invoiceNumber && this.items.length > 0) {
-                    html += `<button onclick="window.__inventory.deductStockForCurrentInvoice()" 
-                                style="margin-top: 10px; padding: 8px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                📊 Deduct Stock for This Invoice
-                            </button>`;
-                }
-
-                summaryDiv.innerHTML = html;
-                invoiceContainer.appendChild(summaryDiv);
-            });
+            const styleEl = document.createElement('style');
+            styleEl.id = styleId;
+            styleEl.textContent = styles;
+            document.head.appendChild(styleEl);
         }
 
-        findInvoiceContainer() {
-            // Try to find the main invoice container
-            const possibleSelectors = [
-                '.invoice-container',
-                '.invoice-wrapper',
-                '.invoice-content',
-                '.print-area',
-                'main',
-                'article',
-                '.container',
-                '#app',
-                'body'
-            ];
+        render() {
+            // Remove any existing module
+            const existing = document.getElementById('eby-inventory-module');
+            if (existing) existing.remove();
 
-            for (const selector of possibleSelectors) {
-                const el = document.querySelector(selector);
-                if (el && el.textContent.includes('SALES INVOICE')) {
-                    return el;
-                }
-            }
+            this.injectStyles();
 
-            // Fallback: find the element containing "SALES INVOICE"
-            const all = document.querySelectorAll('*');
-            for (const el of all) {
-                if (el.textContent && el.textContent.includes('SALES INVOICE') && el.tagName !== 'BODY') {
-                    // Find the closest container
-                    let parent = el.parentElement;
-                    while (parent && parent.tagName !== 'BODY' && parent.children.length < 20) {
-                        parent = parent.parentElement;
-                    }
-                    return parent || el;
-                }
-            }
-
-            return document.body;
-        }
-
-        async enhance() {
-            this.detectInvoice();
-            this.extractItems();
-            
-            // Add stock badges to the table
-            this.addInventoryBadges();
-            
-            // Add inventory footer with status
-            this.addInventoryFooter();
-
-            // Add a floating inventory button
-            this.addFloatingButton();
-
-            console.log('✅ Invoice enhanced with inventory features!');
-        }
-
-        addFloatingButton() {
-            const existing = document.querySelector('#inventory-float-btn');
-            if (existing) return;
-
-            const btn = document.createElement('button');
-            btn.id = 'inventory-float-btn';
-            btn.innerHTML = '📦';
-            btn.style.cssText = `
-                position: fixed;
-                bottom: 30px;
-                right: 30px;
-                width: 60px;
-                height: 60px;
-                border-radius: 50%;
-                background: #007bff;
-                color: white;
-                border: none;
-                font-size: 28px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                cursor: pointer;
-                z-index: 99998;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.3s;
+            const container = document.createElement('div');
+            container.id = 'eby-inventory-module';
+            container.innerHTML = `
+                <div class="header">
+                    <h2>📦 Inventory Management</h2>
+                    <button class="btn-success" onclick="window.__inventoryUI.showAddProductForm()">
+                        ➕ Add Product
+                    </button>
+                </div>
+                <div class="nav-tabs">
+                    <button class="active" data-view="products">📦 Products</button>
+                    <button data-view="lowstock">⚠️ Low Stock</button>
+                    <button data-view="valuation">💰 Valuation</button>
+                    <button data-view="movements">📊 Movements</button>
+                    <button data-view="customers">👥 Customers</button>
+                </div>
+                <div class="view-container" id="inventory-view-content">
+                    Loading...
+                </div>
             `;
-            btn.onmouseenter = () => { btn.style.transform = 'scale(1.1)'; };
-            btn.onmouseleave = () => { btn.style.transform = 'scale(1)'; };
-            btn.onclick = () => {
-                this.showInventoryPanel();
-            };
 
-            document.body.appendChild(btn);
+            // Find where to insert
+            const target = document.querySelector('main') || 
+                          document.querySelector('.container') || 
+                          document.body;
+            target.appendChild(container);
+
+            this.container = container;
+            this.setupEventListeners();
+            this.loadView('products');
+
+            // Expose for modal functions
+            window.__inventoryUI = this;
         }
 
-        showInventoryPanel() {
-            // Check if panel already exists
-            let panel = document.querySelector('#inventory-panel');
-            if (panel) {
-                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        setupEventListeners() {
+            // Tab navigation
+            this.container.querySelectorAll('.nav-tabs button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    this.container.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    this.loadView(btn.dataset.view);
+                });
+            });
+        }
+
+        async loadView(view) {
+            const content = this.container.querySelector('#inventory-view-content');
+            content.innerHTML = '<div style="text-align:center;padding:20px;">Loading...</div>';
+            
+            try {
+                switch(view) {
+                    case 'products':
+                        await this.renderProducts(content);
+                        break;
+                    case 'lowstock':
+                        await this.renderLowStock(content);
+                        break;
+                    case 'valuation':
+                        await this.renderValuation(content);
+                        break;
+                    case 'movements':
+                        await this.renderMovements(content);
+                        break;
+                    case 'customers':
+                        await this.renderCustomers(content);
+                        break;
+                    default:
+                        content.innerHTML = '<p>View not found</p>';
+                }
+            } catch (error) {
+                content.innerHTML = `<div class="alert alert-danger">Error loading view: ${error.message}</div>`;
+                console.error('View load error:', error);
+            }
+        }
+
+        // ============================================
+        // PRODUCTS VIEW
+        // ============================================
+        async renderProducts(container) {
+            const products = await this.manager.getAllProducts();
+            
+            if (products.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-info">
+                        📦 No products found. Click "Add Product" to get started.
+                    </div>
+                `;
                 return;
             }
 
-            panel = document.createElement('div');
-            panel.id = 'inventory-panel';
-            panel.style.cssText = `
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                width: 90%;
-                max-width: 600px;
-                max-height: 80vh;
-                background: white;
-                border-radius: 12px;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-                z-index: 99999;
-                padding: 25px;
-                overflow-y: auto;
-                font-family: Arial, sans-serif;
-            `;
-
-            panel.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3 style="margin: 0;">📦 Inventory Manager</h3>
-                    <button onclick="document.getElementById('inventory-panel').remove()" 
-                            style="background: none; border: none; font-size: 24px; cursor: pointer;">✕</button>
+            let html = `
+                <div class="search-bar">
+                    <input type="text" id="product-search" placeholder="Search by name, SKU, or barcode..." />
+                    <button onclick="window.__inventoryUI.searchProducts()">🔍 Search</button>
+                    <button onclick="window.__inventoryUI.clearSearch()">Clear</button>
                 </div>
-                <div id="inventory-panel-content">
-                    Loading inventory...
-                </div>
-            `;
-
-            document.body.appendChild(panel);
-
-            // Load inventory data
-            this.loadInventoryPanelContent();
-        }
-
-        async loadInventoryPanelContent() {
-            const content = document.querySelector('#inventory-panel-content');
-            if (!content) return;
-
-            try {
-                const products = await this.manager.getAllProducts();
-                const lowStock = await this.manager.getLowStockProducts();
-
-                let html = `
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
-                        <button onclick="window.__inventory.showAddProductForm()" 
-                                style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                            ➕ Add Product
-                        </button>
-                        <button onclick="window.__inventory.refreshInventoryPanel()" 
-                                style="padding: 8px 16px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                            🔄 Refresh
-                        </button>
-                    </div>
-                    <div style="background: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-                        ⚠️ Low Stock: ${lowStock.length} products
-                    </div>
-                    <div style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                            <tr style="background: #f8f9fa;">
-                                <th style="padding: 8px; text-align: left;">Product</th>
-                                <th style="padding: 8px; text-align: center;">Stock</th>
-                                <th style="padding: 8px; text-align: center;">Price</th>
-                                <th style="padding: 8px; text-align: center;">Status</th>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>SKU</th>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Price (₦)</th>
+                                <th>Stock</th>
+                                <th>Status</th>
+                                <th>Actions</th>
                             </tr>
+                        </thead>
+                        <tbody id="product-table-body">
+                    </tbody></table>
+                </div>
+            `;
+            container.innerHTML = html;
+
+            const tbody = container.querySelector('#product-table-body');
+            for (const p of products) {
+                const productWithStock = await this.manager.getProductWithStock(p.id);
+                const stock = productWithStock ? productWithStock.quantity : 0;
+                const priceNGN = (p.unitPriceUSD || 0) * CONFIG.EXCHANGE_RATE;
+                
+                const tr = document.createElement('tr');
+                const statusClass = stock < CONFIG.LOW_STOCK_THRESHOLD ? 'badge-danger' : 'badge-success';
+                const statusText = stock < CONFIG.LOW_STOCK_THRESHOLD ? '⚠️ Low Stock' : '✅ In Stock';
+                
+                tr.innerHTML = `
+                    <td><strong>${p.sku}</strong></td>
+                    <td>${p.name}</td>
+                    <td>${p.category || '-'}</td>
+                    <td>₦${priceNGN.toLocaleString()}</td>
+                    <td class="${stock < CONFIG.LOW_STOCK_THRESHOLD ? 'stock-low' : 'stock-ok'}">
+                        ${stock}
+                    </td>
+                    <td><span class="badge ${statusClass}">${statusText}</span></td>
+                    <td>
+                        <button onclick="window.__inventoryUI.editProduct(${p.id})" style="margin-right:5px;cursor:pointer;">✏️</button>
+                        <button onclick="window.__inventoryUI.deleteProduct(${p.id})" style="cursor:pointer;">🗑️</button>
+                    </td>
                 `;
+                tbody.appendChild(tr);
+            }
 
-                for (const p of products) {
-                    const stock = await this.manager.getProductWithStock(p.id);
-                    const qty = stock ? stock.quantity : 0;
-                    const low = qty < CONFIG.LOW_STOCK_THRESHOLD;
-                    html += `
-                        <tr>
-                            <td style="padding: 8px;">${p.name}</td>
-                            <td style="padding: 8px; text-align: center; color: ${low ? '#dc3545' : '#28a745'}; font-weight: ${low ? 'bold' : 'normal'};">
-                                ${qty}
-                            </td>
-                            <td style="padding: 8px; text-align: center;">₦${(p.unitPrice || 0).toLocaleString()}</td>
-                            <td style="padding: 8px; text-align: center;">
-                                ${low ? '⚠️ Low' : '✅ OK'}
-                            </td>
-                        </tr>
-                    `;
-                }
-
-                html += `</table></div>`;
-                content.innerHTML = html;
-
-                // Store reference for functions
-                window.__inventory = window.__inventory || {};
-                window.__inventory.showAddProductForm = () => this.showAddProductForm();
-                window.__inventory.refreshInventoryPanel = () => this.loadInventoryPanelContent();
-
-            } catch (error) {
-                content.innerHTML = `<div style="color: #dc3545;">❌ Error loading inventory: ${error.message}</div>`;
+            // Setup search
+            const searchInput = container.querySelector('#product-search');
+            if (searchInput) {
+                let searchTimeout;
+                searchInput.addEventListener('input', () => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        this.searchProducts();
+                    }, 300);
+                });
             }
         }
 
-        showAddProductForm() {
-            const content = document.querySelector('#inventory-panel-content');
-            if (!content) return;
+        async searchProducts() {
+            const input = document.querySelector('#product-search');
+            const query = input ? input.value : '';
+            const tbody = document.querySelector('#product-table-body');
+            if (!tbody) return;
 
-            content.innerHTML = `
-                <h4>Add New Product</h4>
-                <form id="add-product-form" style="display: flex; flex-direction: column; gap: 10px;">
-                    <div>
-                        <label style="display: block; font-weight: 500; margin-bottom: 3px;">Product Name *</label>
-                        <input type="text" id="prod-name" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            const products = query.length > 0 
+                ? await this.manager.searchProducts(query)
+                : await this.manager.getAllProducts();
+
+            tbody.innerHTML = '';
+            for (const p of products) {
+                const productWithStock = await this.manager.getProductWithStock(p.id);
+                const stock = productWithStock ? productWithStock.quantity : 0;
+                const priceNGN = (p.unitPriceUSD || 0) * CONFIG.EXCHANGE_RATE;
+                
+                const tr = document.createElement('tr');
+                const statusClass = stock < CONFIG.LOW_STOCK_THRESHOLD ? 'badge-danger' : 'badge-success';
+                const statusText = stock < CONFIG.LOW_STOCK_THRESHOLD ? '⚠️ Low Stock' : '✅ In Stock';
+                
+                tr.innerHTML = `
+                    <td><strong>${p.sku}</strong></td>
+                    <td>${p.name}</td>
+                    <td>${p.category || '-'}</td>
+                    <td>₦${priceNGN.toLocaleString()}</td>
+                    <td class="${stock < CONFIG.LOW_STOCK_THRESHOLD ? 'stock-low' : 'stock-ok'}">
+                        ${stock}
+                    </td>
+                    <td><span class="badge ${statusClass}">${statusText}</span></td>
+                    <td>
+                        <button onclick="window.__inventoryUI.editProduct(${p.id})" style="margin-right:5px;cursor:pointer;">✏️</button>
+                        <button onclick="window.__inventoryUI.deleteProduct(${p.id})" style="cursor:pointer;">🗑️</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        clearSearch() {
+            const input = document.querySelector('#product-search');
+            if (input) {
+                input.value = '';
+                this.searchProducts();
+            }
+        }
+
+        // ============================================
+        // LOW STOCK VIEW
+        // ============================================
+        async renderLowStock(container) {
+            const lowStock = await this.manager.getLowStockProducts();
+            
+            if (lowStock.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-success">
+                        ✅ All products have healthy stock levels!
                     </div>
-                    <div>
-                        <label style="display: block; font-weight: 500; margin-bottom: 3px;">Category</label>
-                        <input type="text" id="prod-category" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                `;
+                return;
+            }
+
+            let html = `
+                <h3>⚠️ Low Stock Alert (${lowStock.length} products)</h3>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>SKU</th>
+                                <th>Name</th>
+                                <th>Current Stock</th>
+                                <th>Threshold</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                    </tbody></table>
+                </div>
+            `;
+            container.innerHTML = html;
+
+            const tbody = container.querySelector('tbody');
+            lowStock.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${p.sku}</td>
+                    <td>${p.name}</td>
+                    <td class="stock-low">${p.quantity}</td>
+                    <td>${CONFIG.LOW_STOCK_THRESHOLD}</td>
+                    <td>
+                        <button onclick="window.__inventoryUI.showAddStockForm(${p.id})" class="btn-primary" style="padding:4px 12px;border:none;border-radius:4px;cursor:pointer;">📦 Restock</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ============================================
+        // VALUATION VIEW
+        // ============================================
+        async renderValuation(container) {
+            const valuation = await this.manager.getInventoryValuation();
+            
+            let html = `
+                <h3>💰 Inventory Valuation</h3>
+                <div style="background:#f8f9fa;padding:15px;border-radius:8px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:20px;">
+                    <div><strong>Total Value (USD):</strong> $${valuation.totalValueUSD.toFixed(2)}</div>
+                    <div><strong>Total Value (NGN):</strong> ₦${valuation.totalValueNGN.toLocaleString()}</div>
+                    <div><strong>Products:</strong> ${valuation.details.length}</div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>SKU</th>
+                                <th>Quantity</th>
+                                <th>Unit Cost (NGN)</th>
+                                <th>Total Value (NGN)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                    </tbody></table>
+                </div>
+            `;
+            container.innerHTML = html;
+
+            const tbody = container.querySelector('tbody');
+            if (valuation.details.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5">No inventory data available</td></tr>';
+                return;
+            }
+
+            valuation.details.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.product}</td>
+                    <td>${item.sku}</td>
+                    <td>${item.quantity}</td>
+                    <td>₦${item.unitCostNGN.toFixed(2)}</td>
+                    <td><strong>₦${item.totalValueNGN.toFixed(2)}</strong></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ============================================
+        // MOVEMENTS VIEW
+        // ============================================
+        async renderMovements(container) {
+            const allProducts = await this.manager.getAllProducts();
+            let html = `
+                <h3>📊 Recent Stock Movements</h3>
+                <div style="margin-bottom:15px;">
+                    <select id="movement-product-filter" onchange="window.__inventoryUI.loadMovements(this.value)" style="padding:8px;border:1px solid #ddd;border-radius:4px;width:100%;max-width:300px;">
+                        <option value="">All Products</option>
+                        ${allProducts.map(p => `<option value="${p.id}">${p.sku} - ${p.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Type</th>
+                                <th>Quantity</th>
+                                <th>Note</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="movements-table-body">
+                    </tbody></table>
+                </div>
+            `;
+            container.innerHTML = html;
+            
+            await this.loadMovements('');
+        }
+
+        async loadMovements(productId) {
+            const tbody = document.querySelector('#movements-table-body');
+            if (!tbody) return;
+
+            let movements;
+            if (productId) {
+                movements = await this.manager.getStockMovements(parseInt(productId));
+            } else {
+                const all = await this.manager.db.getAll('stockMovements');
+                movements = all.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 100);
+            }
+
+            tbody.innerHTML = '';
+            if (movements.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5">No movements found</td></tr>';
+                return;
+            }
+
+            for (const m of movements) {
+                const product = await this.manager.db.get('products', m.productId);
+                const tr = document.createElement('tr');
+                const typeLabels = {
+                    'sale': '🛒 Sale',
+                    'purchase': '📦 Purchase',
+                    'adjustment': '⚙️ Adjustment',
+                    'initial': '🚀 Initial'
+                };
+                const typeClass = m.type === 'sale' ? 'badge-danger' : 
+                                 m.type === 'purchase' ? 'badge-success' : 'badge-warning';
+                
+                tr.innerHTML = `
+                    <td>${product ? product.name : 'Unknown'}</td>
+                    <td><span class="badge ${typeClass}">${typeLabels[m.type] || m.type}</span></td>
+                    <td class="${m.quantity < 0 ? 'stock-low' : 'stock-ok'}">
+                        ${m.quantity > 0 ? '+' : ''}${m.quantity}
+                    </td>
+                    <td>${m.note || '-'}</td>
+                    <td>${new Date(m.timestamp).toLocaleString()}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        // ============================================
+        // CUSTOMERS VIEW        // ============================================
+        async renderCustomers(container) {
+            try {
+                const customers = await this.manager.getCustomers();
+                
+                if (!customers || customers.length === 0) {
+                    container.innerHTML = `
+                        <div class="alert alert-info">
+                            👥 No customers saved yet.<br>
+                            Add customers from the invoice form when creating invoices.
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = `
+                    <h3>👥 Customer Database (${customers.length})</h3>
+                    <div style="overflow-x:auto; margin-top: 15px;">
+                        <table style="width:100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8f9fa;">
+                                    <th style="padding: 10px; text-align: left;">Name</th>
+                                    <th style="padding: 10px; text-align: left;">Phone</th>
+                                    <th style="padding: 10px; text-align: left;">Address</th>
+                                    <th style="padding: 10px; text-align: left;">Added</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                customers.forEach(c => {
+                    html += `
+                        <tr>
+                            <td style="padding: 8px 10px; border-bottom: 1px solid #eee;">
+                                <strong>${c.name}</strong>
+                            </td>
+                            <td style="padding: 8px 10px; border-bottom: 1px solid #eee;">
+                                ${c.phone || '-'}
+                            </td>
+                            <td style="padding: 8px 10px; border-bottom: 1px solid #eee;">
+                                ${c.address || '-'}
+                            </td>
+                            <td style="padding: 8px 10px; border-bottom: 1px solid #eee; font-size: 12px; color: #666;">
+                                ${c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '-'}
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
                     </div>
-                    <div>
-                        <label style="display: block; font-weight: 500; margin-bottom: 3px;">Unit Price (₦)</label>
-                        <input type="number" id="prod-price" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <div style="margin-top: 15px; font-size: 13px; color: #666;">
+                        Total: ${customers.length} customer${customers.length > 1 ? 's' : ''}
                     </div>
-                    <div>
-                        <label style="display: block; font-weight: 500; margin-bottom: 3px;">Initial Stock</label>
-                        <input type="number" id="prod-stock" value="0" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                `;
+                
+                container.innerHTML = html;
+                
+            } catch (error) {
+                container.innerHTML = `<div class="alert alert-danger">Error loading customers: ${error.message}</div>`;
+                console.error('Customer render error:', error);
+            }
+        }
+
+        // ============================================
+        // MODALS - Add Product
+        // ============================================
+        showAddProductForm() {
+            this.showModal(`
+                <h3>➕ Add New Product</h3>
+                <form id="add-product-form">
+                    <div class="form-group">
+                        <label>SKU *</label>
+                        <input type="text" id="prod-sku" placeholder="e.g., PRD-001" />
+                        <small style="color:#666;">Leave blank to auto-generate</small>
                     </div>
-                    <div style="display: flex; gap: 10px; margin-top: 10px;">
-                        <button type="submit" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Save Product</button>
-                        <button type="button" onclick="window.__inventory.refreshInventoryPanel()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+                    <div class="form-group">
+                        <label>Product Name *</label>
+                        <input type="text" id="prod-name" required placeholder="e.g., Gold Chain 18K" />
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <input type="text" id="prod-category" placeholder="e.g., Jewelry" />
+                    </div>
+                    <div class="form-group">
+                        <label>Unit Price (NGN ₦)</label>
+                        <input type="number" id="prod-price" step="0.01" placeholder="0.00" />
+                        <small style="color:#666;">Will be converted to USD at ₦${CONFIG.EXCHANGE_RATE}/$</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Cost Price (NGN ₦)</label>
+                        <input type="number" id="prod-cost" step="0.01" placeholder="0.00" />
+                    </div>
+                    <div class="form-group">
+                        <label>Initial Stock</label>
+                        <input type="number" id="prod-stock" value="0" min="0" />
+                    </div>
+                    <div class="form-group">
+                        <label>Barcode (optional)</label>
+                        <input type="text" id="prod-barcode" placeholder="Scan or enter barcode" />
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="window.__inventoryUI.closeModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Save Product</button>
                     </div>
                 </form>
-            `;
+            `);
 
             document.getElementById('add-product-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
+                
+                const priceNGN = parseFloat(document.getElementById('prod-price').value) || 0;
+                const costNGN = parseFloat(document.getElementById('prod-cost').value) || 0;
+                
                 const data = {
+                    sku: document.getElementById('prod-sku').value.trim() || undefined,
                     name: document.getElementById('prod-name').value.trim(),
                     category: document.getElementById('prod-category').value.trim(),
-                    unitPrice: parseFloat(document.getElementById('prod-price').value) || 0,
-                    initialStock: parseInt(document.getElementById('prod-stock').value) || 0
+                    unitPriceUSD: priceNGN / CONFIG.EXCHANGE_RATE,
+                    costPriceUSD: costNGN / CONFIG.EXCHANGE_RATE,
+                    initialStock: parseInt(document.getElementById('prod-stock').value) || 0,
+                    barcode: document.getElementById('prod-barcode').value.trim(),
                 };
 
                 try {
                     await this.manager.createProduct(data);
-                    alert('✅ Product created successfully!');
-                    this.loadInventoryPanelContent();
+                    this.closeModal();
+                    this.loadView('products');
+                    alert(`✅ Product created successfully!\nPrice: ₦${priceNGN.toFixed(2)} ($${(data.unitPriceUSD).toFixed(2)})`);
                 } catch (error) {
                     alert('❌ ' + error.message);
                 }
             });
         }
 
-        async deductStockForCurrentInvoice() {
-            if (!this.invoiceNumber || this.items.length === 0) {
-                alert('No invoice data found to deduct stock from.');
-                return;
-            }
+        // ============================================
+        // MODALS - Restock
+        // ============================================
+        showAddStockForm(productId) {
+            this.showModal(`
+                <h3>📦 Restock Product</h3>
+                <form id="restock-form">
+                    <div class="form-group">
+                        <label>Quantity to Add</label>
+                        <input type="number" id="restock-qty" required min="1" placeholder="Enter quantity" />
+                    </div>
+                    <div class="form-group">
+                        <label>Note (optional)</label>
+                        <input type="text" id="restock-note" placeholder="e.g., New shipment received" />
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="window.__inventoryUI.closeModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Add Stock</button>
+                    </div>
+                </form>
+            `);
 
-            if (!confirm(`Deduct stock for invoice ${this.invoiceNumber}?`)) return;
+            document.getElementById('restock-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const quantity = parseInt(document.getElementById('restock-qty').value);
+                const note = document.getElementById('restock-note').value.trim();
 
-            try {
-                const results = await this.manager.deductStockForInvoice(this.invoiceNumber, this.items);
-                
-                let message = '📊 Stock Deduction Results:\n\n';
-                for (const r of results) {
-                    if (r.status === 'deducted') {
-                        message += `✅ ${r.productName}: ${r.remaining} remaining\n`;
-                    } else if (r.status === 'created') {
-                        message += `🆕 ${r.productName}: Created in inventory (0 stock)\n`;
-                    } else {
-                        message += `❌ ${r.productName}: ${r.error}\n`;
-                    }
+                try {
+                    await this.manager.updateStock(productId, quantity, 'purchase', note || 'Manual restock');
+                    this.closeModal();
+                    this.loadView('lowstock');
+                    alert('✅ Stock updated successfully!');
+                } catch (error) {
+                    alert('❌ ' + error.message);
                 }
-                alert(message);
+            });
+        }
 
-                // Refresh the inventory panel
-                this.loadInventoryPanelContent();
+        // ============================================
+        // EDIT / DELETE PRODUCT
+        // ============================================
+        async editProduct(productId) {
+            const product = await this.manager.db.get('products', productId);
+            if (!product) return;
 
-                // Update the invoice footer
-                this.addInventoryFooter();
+            const inv = await this.manager.db.query('inventory', 'productId', productId);
+            const stock = inv.length > 0 ? inv[0].quantity : 0;
+            const priceNGN = (product.unitPriceUSD || 0) * CONFIG.EXCHANGE_RATE;
 
+            this.showModal(`
+                <h3>✏️ Edit Product</h3>
+                <form id="edit-product-form">
+                    <div class="form-group">
+                        <label>SKU *</label>
+                        <input type="text" id="edit-sku" value="${product.sku}" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Product Name *</label>
+                        <input type="text" id="edit-name" value="${product.name}" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <input type="text" id="edit-category" value="${product.category || ''}" />
+                    </div>
+                    <div class="form-group">
+                        <label>Unit Price (NGN ₦)</label>
+                        <input type="number" id="edit-price" step="0.01" value="${priceNGN.toFixed(2)}" />
+                    </div>
+                    <div class="form-group">
+                        <label>Current Stock</label>
+                        <input type="number" id="edit-stock" value="${stock}" disabled style="background:#f0f0f0;" />
+                        <small style="color:#666;">Use "Restock" to change inventory</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Barcode</label>
+                        <input type="text" id="edit-barcode" value="${product.barcode || ''}" />
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="window.__inventoryUI.closeModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Update Product</button>
+                    </div>
+                </form>
+            `);
+
+            document.getElementById('edit-product-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const priceNGN = parseFloat(document.getElementById('edit-price').value) || 0;
+                
+                const updates = {
+                    sku: document.getElementById('edit-sku').value.trim(),
+                    name: document.getElementById('edit-name').value.trim(),
+                    category: document.getElementById('edit-category').value.trim(),
+                    unitPriceUSD: priceNGN / CONFIG.EXCHANGE_RATE,
+                    barcode: document.getElementById('edit-barcode').value.trim(),
+                };
+
+                try {
+                    await this.manager.updateProduct(productId, updates);
+                    this.closeModal();
+                    this.loadView('products');
+                    alert('✅ Product updated successfully!');
+                } catch (error) {
+                    alert('❌ ' + error.message);
+                }
+            });
+        }
+
+        async deleteProduct(productId) {
+            if (!confirm('Are you sure you want to delete this product? This cannot be undone.')) return;
+            
+            try {
+                await this.manager.deleteProduct(productId);
+                this.loadView('products');
+                alert('✅ Product deleted successfully');
             } catch (error) {
-                alert('❌ Stock deduction failed: ' + error.message);
+                alert('❌ ' + error.message);
+            }
+        }
+
+        // ============================================
+        // MODAL HELPERS
+        // ============================================
+        showModal(html) {
+            this.closeModal();
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal-content">
+                    ${html}
+                </div>
+            `;
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) this.closeModal();
+            });
+            document.body.appendChild(overlay);
+            this._modalOverlay = overlay;
+        }
+
+        closeModal() {
+            if (this._modalOverlay) {
+                this._modalOverlay.remove();
+                this._modalOverlay = null;
             }
         }
     }
@@ -940,95 +969,42 @@ function ngnToUsd(ngnAmount) {
     // ============================================
     // INITIALIZATION
     // ============================================
-    async function init() {
+    async function initUI() {
         try {
-            const db = new InventoryDB();
-            await db.init();
+            // Wait for inventory
+            let attempts = 0;
+            while (!window.__inventory && attempts < 20) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                attempts++;
+            }
+            
+            if (!window.__inventory) {
+                console.error('❌ Inventory not available for UI');
+                return;
+            }
 
-            const manager = new InventoryManager(db);
-            const enhancer = new InvoiceEnhancer(manager);
-
+            const manager = window.__inventory.manager;
+            const ui = new InventoryUI(manager);
+            
             // Store globally
-            window.__inventory = {
-                db,
-                manager,
-                enhancer,
-                deductStockForCurrentInvoice: () => enhancer.deductStockForCurrentInvoice(),
-                showAddProductForm: () => enhancer.showAddProductForm(),
-                refreshInventoryPanel: () => enhancer.loadInventoryPanelContent()
-            };
+            window.__inventoryUI = ui;
 
-            // Wait for the invoice to render, then enhance
-            setTimeout(() => {
-                enhancer.enhance();
-            }, 1000);
+            // Inject UI after a small delay
+            setTimeout(() => ui.render(), 500);
 
-            console.log('✅ Eby-Gold Inventory Enhancer loaded!');
-            console.log('📚 Use window.__inventory to access features');
+            console.log('✅ Inventory UI loaded!');
+            console.log('📚 Use window.__inventoryUI to interact');
 
         } catch (error) {
-            console.error('❌ Init failed:', error);
+            console.error('❌ UI init failed:', error);
         }
     }
 
     // Auto-init
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', initUI);
     } else {
-        init();
+        initUI();
     }
 
 })();
-// Add to the render method - add a new tab
-// In the nav-tabs section:
-<div class="nav-tabs">
-    <button class="active" data-view="products">Products</button>
-    <button data-view="lowstock">Low Stock</button>
-    <button data-view="valuation">Valuation</button>
-    <button data-view="movements">Movements</button>
-    <button data-view="customers">Customers</button> <!-- NEW -->
-</div>
-
-// Add new render method
-async renderCustomers(container) {
-    const customers = await this.manager.getCustomers();
-    
-    if (customers.length === 0) {
-        container.innerHTML = `
-            <div class="alert alert-info">
-                No customers saved yet. Add customers from the invoice form.
-            </div>
-        `;
-        return;
-    }
-    
-    let html = `
-        <h3>👥 Customer Database (${customers.length})</h3>
-        <div style="overflow-x:auto;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Phone</th>
-                        <th>Address</th>
-                        <th>Added</th>
-                    </tr>
-                </thead>
-                <tbody>
-            </tbody></table>
-        </div>
-    `;
-    container.innerHTML = html;
-    
-    const tbody = container.querySelector('tbody');
-    customers.forEach(c => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><strong>${c.name}</strong></td>
-            <td>${c.phone || '-'}</td>
-            <td>${c.address || '-'}</td>
-            <td>${new Date(c.createdAt).toLocaleDateString()}</td>
-        `;
-        tbody.appendChild(tr);
-    });
-    }
