@@ -539,4 +539,342 @@
         // ============================================
         // CUSTOMER SECTION
         // ============================================
-        setup
+        setupCustomerSection() {
+            const customerSection = this.findSection('Customer Details');
+            if (!customerSection) {
+                console.warn('⚠️ "Customer Details" section not found');
+                return;
+            }
+
+            // Check if already enhanced
+            if (customerSection.querySelector('#customer-db-integration')) return;
+            
+            const wrapper = document.createElement('div');
+            wrapper.id = 'customer-db-integration';
+            wrapper.style.cssText = 'margin: 10px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;';
+            
+            wrapper.innerHTML = `
+                <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;">
+                    <div style="flex:2;min-width:150px;">
+                        <label style="display:block;font-size:12px;color:#666;margin-bottom:3px;">Customer Name</label>
+                        <input type="text" id="customer-name" class="customer-input" placeholder="Search or enter customer..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;" autocomplete="off">
+                        <div id="customer-autocomplete" style="display:none;position:absolute;background:white;border:1px solid #ddd;border-radius:4px;max-height:150px;overflow-y:auto;z-index:1000;min-width:200px;box-shadow:0 4px 8px rgba(0,0,0,0.1);"></div>
+                    </div>
+                    <div style="flex:1;min-width:120px;">
+                        <label style="display:block;font-size:12px;color:#666;margin-bottom:3px;">Phone</label>
+                        <input type="text" id="customer-phone" class="customer-input" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;">
+                    </div>
+                    <div style="flex:2;min-width:150px;">
+                        <label style="display:block;font-size:12px;color:#666;margin-bottom:3px;">Address</label>
+                        <input type="text" id="customer-address" class="customer-input" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;">
+                    </div>
+                    <div>
+                        <button id="save-customer-btn" style="padding:8px 16px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;">💾 Save Customer</button>
+                    </div>
+                </div>
+                <div id="customer-list" style="margin-top:10px;font-size:13px;color:#666;"></div>
+            `;
+            
+            customerSection.appendChild(wrapper);
+            
+            // Setup customer events
+            this.setupCustomerEvents();
+        }
+
+        setupCustomerEvents() {
+            const nameInput = document.getElementById('customer-name');
+            const phoneInput = document.getElementById('customer-phone');
+            const addressInput = document.getElementById('customer-address');
+            const saveBtn = document.getElementById('save-customer-btn');
+            const autocompleteContainer = document.getElementById('customer-autocomplete');
+            
+            if (!nameInput) return;
+            
+            // Make container position relative for autocomplete
+            const container = nameInput.parentElement;
+            container.style.position = 'relative';
+            
+            // Search customers on input
+            let searchTimeout;
+            nameInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    this.searchCustomers(e.target.value, autocompleteContainer);
+                }, 300);
+            });
+            
+            // Save customer
+            saveBtn.addEventListener('click', () => {
+                this.saveCustomer({
+                    name: nameInput.value.trim(),
+                    phone: phoneInput.value.trim(),
+                    address: addressInput.value.trim()
+                });
+            });
+            
+            // Click outside to hide autocomplete
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#customer-name') && !e.target.closest('#customer-autocomplete')) {
+                    autocompleteContainer.style.display = 'none';
+                }
+            });
+        }
+
+        async searchCustomers(query, container) {
+            if (query.length < 1) {
+                container.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const customers = await this.inventory.manager.getCustomers(query);
+                
+                if (customers.length === 0) {
+                    container.innerHTML = `<div style="padding:8px;color:#999;">No customers found. Press Save to add.</div>`;
+                    container.style.display = 'block';
+                    return;
+                }
+                
+                container.innerHTML = '';
+                customers.forEach(customer => {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;';
+                    item.innerHTML = `<strong>${customer.name}</strong><br><small style="color:#666;">${customer.phone || ''} ${customer.address || ''}</small>`;
+                    
+                    item.addEventListener('click', () => {
+                        this.selectCustomer(customer);
+                        container.style.display = 'none';
+                    });
+                    
+                    container.appendChild(item);
+                });
+                container.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Customer search failed:', error);
+            }
+        }
+
+        selectCustomer(customer) {
+            document.getElementById('customer-name').value = customer.name;
+            document.getElementById('customer-phone').value = customer.phone || '';
+            document.getElementById('customer-address').value = customer.address || '';
+            this.customerData = customer;
+        }
+
+        async saveCustomer(data) {
+            if (!data.name) {
+                alert('Please enter a customer name');
+                return;
+            }
+            
+            try {
+                const saved = await this.inventory.manager.saveCustomer(data);
+                alert(`✅ Customer "${data.name}" saved successfully!`);
+                this.customerData = saved;
+                this.loadCustomerData();
+            } catch (error) {
+                alert('❌ Failed to save customer: ' + error.message);
+            }
+        }
+
+        async loadCustomerData() {
+            try {
+                const customers = await this.inventory.manager.getCustomers();
+                const listEl = document.getElementById('customer-list');
+                if (listEl && customers.length > 0) {
+                    listEl.innerHTML = `📋 Recent customers: ${customers.slice(0, 5).map(c => c.name).join(', ')}`;
+                }
+            } catch (error) {
+                console.error('Load customer data failed:', error);
+            }
+        }
+
+        // ============================================
+        // INVOICE ACTIONS (Create / Save)
+        // ============================================
+        setupInvoiceActions() {
+            // Find the create invoice button
+            const buttons = document.querySelectorAll('button');
+            let createBtn = null;
+            
+            for (const btn of buttons) {
+                const text = btn.textContent || '';
+                if (/create|save|generate|invoice|print|submit/i.test(text)) {
+                    createBtn = btn;
+                    break;
+                }
+            }
+            
+            if (createBtn) {
+                const originalClick = createBtn.onclick;
+                createBtn.addEventListener('click', async (e) => {
+                    await this.validateBeforeInvoice(e, originalClick);
+                });
+                console.log('✅ Invoice action button enhanced');
+            } else {
+                console.warn('⚠️ No create/save button found');
+            }
+        }
+
+        async validateBeforeInvoice(e, originalHandler) {
+            const invoiceData = this.getInvoiceData();
+            
+            if (invoiceData.items.length === 0) {
+                alert('Please add at least one item to the invoice.');
+                e.preventDefault();
+                return false;
+            }
+            
+            // Check stock for each item
+            let hasStockIssue = false;
+            const stockResults = [];
+            
+            for (const item of invoiceData.items) {
+                let product = await this.inventory.manager.getProductByName(item.name);
+                
+                if (!product) {
+                    // Product not in inventory - ask to add
+                    const addToInventory = confirm(`"${item.name}" is not in inventory. Would you like to add it now?`);
+                    if (addToInventory) {
+                        try {
+                            const newId = await this.inventory.manager.createProduct({
+                                name: item.name,
+                                unitPriceUSD: item.rate / 1600,
+                                initialStock: 0
+                            });
+                            product = await this.inventory.manager.getProductWithStock(newId);
+                            stockResults.push({ item: item.name, status: 'created' });
+                        } catch (error) {
+                            alert(`❌ Failed to add product: ${error.message}`);
+                            hasStockIssue = true;
+                        }
+                    } else {
+                        hasStockIssue = true;
+                    }
+                } else if (product.quantity < item.qty) {
+                    alert(`⚠️ Insufficient stock for "${item.name}". Available: ${product.quantity}, Requested: ${item.qty}`);
+                    hasStockIssue = true;
+                } else {
+                    stockResults.push({ item: item.name, status: 'ok' });
+                }
+            }
+            
+            if (hasStockIssue) {
+                e.preventDefault();
+                return false;
+            }
+            
+            // Deduct stock
+            try {
+                const results = await this.inventory.manager.deductStockForInvoice(
+                    this.invoiceNumber, 
+                    invoiceData.items
+                );
+                
+                let summary = '📊 Stock Deduction Results:\n\n';
+                results.forEach(r => {
+                    if (r.status === 'deducted') {
+                        summary += `✅ ${r.productName}: ${r.remaining} remaining\n`;
+                    } else if (r.status === 'created') {
+                        summary += `🆕 ${r.productName}: Added to inventory (0 stock)\n`;
+                    } else {
+                        summary += `❌ ${r.productName}: ${r.error}\n`;
+                    }
+                });
+                alert(summary);
+                
+            } catch (error) {
+                alert('❌ Stock deduction failed: ' + error.message);
+                e.preventDefault();
+                return false;
+            }
+            
+            // If all checks pass, proceed with invoice creation
+            if (originalHandler) {
+                // Store invoice data for the original handler
+                window.__invoiceData = invoiceData;
+            }
+            
+            return true;
+        }
+    }
+
+    // ============================================
+    // GLOBAL HELPER: Add product from invoice
+    // ============================================
+    window.addNewProductFromInvoice = async function(name) {
+        if (!name || !window.__inventory) return;
+        
+        try {
+            const manager = window.__inventory.manager;
+            await manager.createProduct({
+                name: name.trim(),
+                unitPriceUSD: 0,
+                initialStock: 0
+            });
+            alert(`✅ "${name}" added to inventory! Please refresh and search again.`);
+            
+            // Reload products
+            if (window.__invoiceIntegration) {
+                await window.__invoiceIntegration.loadProducts();
+            }
+        } catch (error) {
+            alert('❌ Failed to add product: ' + error.message);
+        }
+    };
+
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+    let integrationInstance = null;
+
+    async function initIntegration() {
+        try {
+            // Wait for DOM
+            await new Promise(resolve => {
+                if (document.readyState === 'complete') resolve();
+                else window.addEventListener('load', resolve);
+            });
+            
+            // Wait for inventory
+            await waitForInventory();
+            
+            // Initialize integration
+            integrationInstance = new InvoiceInventoryIntegration();
+            await integrationInstance.init();
+            
+            console.log('✅ Invoice-Inventory integration ready!');
+            window.__invoiceIntegration = integrationInstance;
+            
+            // Dispatch event
+            document.dispatchEvent(new CustomEvent('integration-ready', {
+                detail: { integration: integrationInstance }
+            }));
+            
+        } catch (error) {
+            console.error('❌ Integration init failed:', error);
+        }
+    }
+
+    // Auto-init with retry
+    let initAttempts = 0;
+    const maxAttempts = 5;
+
+    function tryInit() {
+        initAttempts++;
+        if (initAttempts > maxAttempts) {
+            console.error('❌ Failed to initialize integration after', maxAttempts, 'attempts');
+            return;
+        }
+        
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            initIntegration();
+        } else {
+            document.addEventListener('DOMContentLoaded', initIntegration);
+        }
+    }
+
+    tryInit();
+
+})();
