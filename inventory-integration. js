@@ -6,8 +6,10 @@
 (function() {
     'use strict';
 
-    // Wait for inventory module
-    function waitForInventory(retries = 20) {
+    // ============================================
+    // WAIT FOR INVENTORY
+    // ============================================
+    function waitForInventory(retries = 30) {
         return new Promise((resolve, reject) => {
             if (window.__inventory && window.__inventory.manager) {
                 resolve(window.__inventory);
@@ -22,20 +24,22 @@
                     resolve(window.__inventory);
                 } else if (attempts >= retries) {
                     clearInterval(interval);
-                    reject(new Error('Inventory module not loaded'));
+                    reject(new Error('Inventory module not loaded after ' + retries + ' attempts'));
                 }
             }, 500);
         });
     }
 
-    // Main integration class
+    // ============================================
+    // MAIN INTEGRATION CLASS
+    // ============================================
     class InvoiceInventoryIntegration {
         constructor() {
             this.inventory = null;
-            this.itemRows = [];
             this.customerData = {};
             this.invoiceNumber = this.generateInvoiceNumber();
             this.initialized = false;
+            this.products = [];
         }
 
         generateInvoiceNumber() {
@@ -52,19 +56,22 @@
             try {
                 this.inventory = await waitForInventory();
                 this.initialized = true;
+                
+                // Load products
+                await this.loadProducts();
+                
                 console.log('✅ Inventory integration ready');
+                console.log('📦 Products loaded:', this.products.length);
                 
                 // Setup the invoice form
                 this.setupInvoiceForm();
                 this.setupCustomerSection();
-                this.setupAddItemButton();
-                this.setupItemRowTemplate();
                 this.setupInvoiceActions();
                 
                 // Auto-fill invoice number
                 this.updateInvoiceNumber();
                 
-                // Load saved customer data if exists
+                // Load saved customer data
                 this.loadCustomerData();
                 
                 return true;
@@ -74,151 +81,122 @@
             }
         }
 
-        setupInvoiceForm() {
-            // Find the main container
-            const container = document.querySelector('.container') || 
-                             document.querySelector('main') || 
-                             document.body;
-            
-            // Check if already enhanced
-            if (document.querySelector('#invoice-integration-enhanced')) return;
-
-            // Add integration marker
-            const marker = document.createElement('div');
-            marker.id = 'invoice-integration-enhanced';
-            marker.style.display = 'none';
-            container.prepend(marker);
-
-            // Find or create the Add Items section
-            const addItemsSection = this.findOrCreateSection(container, 'Add Items');
-            
-            // Enhance item table
-            this.enhanceItemTable(addItemsSection);
+        async loadProducts() {
+            try {
+                this.products = await this.inventory.manager.getAllProducts();
+                console.log('📦 Loaded', this.products.length, 'products');
+            } catch (error) {
+                console.error('Failed to load products:', error);
+                this.products = [];
+            }
         }
 
-        findOrCreateSection(container, title) {
-            // Try to find existing section
-            const sections = container.querySelectorAll('h2, h3, h4, .section-title');
-            for (const section of sections) {
-                if (section.textContent.trim() === title) {
-                    return section.parentElement || section;
+        // ============================================
+        // INVOICE FORM SETUP
+        // ============================================
+        setupInvoiceForm() {
+            // Find the Add Items section
+            const addItemsSection = this.findSection('Add Items');
+            if (!addItemsSection) {
+                console.warn('⚠️ "Add Items" section not found');
+                return;
+            }
+
+            // Find the table
+            let table = addItemsSection.querySelector('table');
+            if (!table) {
+                console.warn('⚠️ Table not found in Add Items section');
+                return;
+            }
+
+            // Check if already enhanced
+            if (table.dataset.inventoryEnhanced === 'true') {
+                console.log('✅ Table already enhanced');
+                return;
+            }
+
+            // Enhance the table
+            this.enhanceTable(table);
+            table.dataset.inventoryEnhanced = 'true';
+            
+            console.log('✅ Invoice table enhanced');
+        }
+
+        findSection(title) {
+            // Try to find by heading
+            const headings = document.querySelectorAll('h2, h3, h4, .section-title');
+            for (const heading of headings) {
+                if (heading.textContent.trim() === title) {
+                    return heading.parentElement || heading;
                 }
             }
-
-            // If not found, create it
-            const section = document.createElement('div');
-            section.className = 'section';
-            section.innerHTML = `<h3>${title}</h3>`;
-            container.appendChild(section);
-            return section;
+            
+            // Try to find by text content
+            const elements = document.querySelectorAll('div, section, .section');
+            for (const el of elements) {
+                if (el.textContent.includes(title) && el.children.length > 0) {
+                    return el;
+                }
+            }
+            
+            return null;
         }
 
-        enhanceItemTable(section) {
-            // Find the table
-            let table = section.querySelector('table');
-            if (!table) {
-                // Create table if it doesn't exist
-                table = document.createElement('table');
-                table.innerHTML = `
-                    <thead>
-                        <tr>
-                            <th>S/N</th>
-                            <th>Items</th>
-                            <th>Qty</th>
-                            <th>Rate (₦)</th>
-                            <th>Total (₦)</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="invoice-items-body">
-                        <tr class="item-row">
-                            <td class="sn">1</td>
-                            <td>
-                                <input type="text" class="item-name" placeholder="Search product..." autocomplete="off">
-                                <div class="autocomplete-list" style="display:none;"></div>
-                            </td>
-                            <td><input type="number" class="item-qty" value="1" min="1"></td>
-                            <td><input type="number" class="item-rate" step="0.01" value="0"></td>
-                            <td class="item-total">₦0.00</td>
-                            <td><button class="remove-item" style="color:red;background:none;border:none;cursor:pointer;">✕</button></td>
-                        </tr>
-                    </tbody>
-                `;
-                section.appendChild(table);
+        enhanceTable(table) {
+            // Get the tbody
+            let tbody = table.querySelector('tbody');
+            if (!tbody) {
+                tbody = document.createElement('tbody');
+                table.appendChild(tbody);
             }
 
-            // Add "Add Row" button
-            const addBtn = document.createElement('button');
-            addBtn.textContent = '➕ Add Item';
-            addBtn.className = 'add-item-btn';
-            addBtn.style.cssText = `
-                margin: 10px 0;
-                padding: 8px 16px;
-                background: #28a745;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-            `;
-            section.appendChild(addBtn);
+            // Check if there's already a header
+            let thead = table.querySelector('thead');
+            if (!thead) {
+                thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                const headers = ['S/N', 'Items', 'Qty', 'Rate (₦)', 'Total (₦)', 'Action'];
+                headers.forEach(text => {
+                    const th = document.createElement('th');
+                    th.textContent = text;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.prepend(thead);
+            }
 
-            // Add summary section
-            const summary = document.createElement('div');
-            summary.id = 'invoice-summary';
-            summary.style.cssText = `
-                margin: 15px 0;
-                padding: 15px;
-                background: #f8f9fa;
-                border-radius: 8px;
-                border-left: 4px solid #007bff;
-            `;
-            summary.innerHTML = `
-                <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-                    <span><strong>Subtotal:</strong> <span id="subtotal">₦0.00</span></span>
-                    <span><strong>Total:</strong> <span id="grand-total">₦0.00</span></span>
-                    <span><strong>Items:</strong> <span id="item-count">0</span></span>
-                </div>
-            `;
-            section.appendChild(summary);
+            // Add a sample row if empty
+            if (tbody.children.length === 0) {
+                this.addItemRow(tbody);
+            }
 
-            // Store references
+            // Store reference
+            this.tbody = tbody;
             this.table = table;
-            this.tbody = table.querySelector('tbody');
-            this.addBtn = addBtn;
-            this.summary = summary;
 
-            // Setup event listeners
-            this.setupRowEvents();
-            this.setupAddItemButton();
-        }
-
-        setupRowEvents() {
-            // Use event delegation for dynamic rows
-            this.tbody.addEventListener('input', (e) => {
+            // Setup row events (delegation)
+            tbody.addEventListener('input', (e) => {
                 const row = e.target.closest('.item-row');
                 if (!row) return;
 
                 const nameInput = row.querySelector('.item-name');
                 const qtyInput = row.querySelector('.item-qty');
                 const rateInput = row.querySelector('.item-rate');
-                const totalCell = row.querySelector('.item-total');
 
-                // Handle name input (autocomplete)
                 if (e.target === nameInput) {
                     this.handleProductSearch(nameInput);
                 }
 
-                // Handle qty or rate change
                 if (e.target === qtyInput || e.target === rateInput) {
                     this.calculateRowTotal(row);
                     this.updateTotals();
                 }
             });
 
-            // Remove row
-            this.tbody.addEventListener('click', (e) => {
-                if (e.target.classList.contains('remove-item')) {
-                    const row = e.target.closest('.item-row');
+            tbody.addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-item') || e.target.closest('.remove-item')) {
+                    const btn = e.target.closest('.remove-item');
+                    const row = btn.closest('.item-row');
                     if (this.tbody.children.length > 1) {
                         row.remove();
                         this.updateRowNumbers();
@@ -228,14 +206,99 @@
                     }
                 }
             });
-        }
 
-        setupAddItemButton() {
-            this.addBtn.addEventListener('click', () => {
-                this.addItemRow();
+            // Add "Add Item" button if not exists
+            const container = table.parentElement;
+            let addBtn = container.querySelector('.add-item-btn');
+            if (!addBtn) {
+                addBtn = document.createElement('button');
+                addBtn.textContent = '➕ Add Item';
+                addBtn.className = 'add-item-btn';
+                addBtn.style.cssText = `
+                    margin: 10px 0;
+                    padding: 8px 16px;
+                    background: #28a745;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                `;
+                container.appendChild(addBtn);
+            }
+
+            addBtn.addEventListener('click', () => {
+                this.addItemRow(this.tbody);
             });
+
+            // Add summary section
+            let summary = document.getElementById('invoice-summary');
+            if (!summary) {
+                summary = document.createElement('div');
+                summary.id = 'invoice-summary';
+                summary.style.cssText = `
+                    margin: 15px 0;
+                    padding: 15px;
+                    background: #f8f9fa;
+                    border-radius: 8px;
+                    border-left: 4px solid #007bff;
+                `;
+                summary.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                        <span><strong>Subtotal:</strong> <span id="subtotal">₦0.00</span></span>
+                        <span><strong>Total:</strong> <span id="grand-total">₦0.00</span></span>
+                        <span><strong>Items:</strong> <span id="item-count">0</span></span>
+                    </div>
+                `;
+                container.appendChild(summary);
+            }
+
+            this.summary = summary;
         }
 
+        addItemRow(tbody, data = null) {
+            const rowCount = tbody.children.length + 1;
+            
+            const row = document.createElement('tr');
+            row.className = 'item-row';
+            row.innerHTML = `
+                <td class="sn">${rowCount}</td>
+                <td style="position:relative;">
+                    <input type="text" class="item-name" placeholder="Search product..." autocomplete="off" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px;">
+                    <div class="autocomplete-list" style="display:none;position:absolute;background:white;border:1px solid #ddd;border-radius:4px;max-height:200px;overflow-y:auto;z-index:1000;min-width:200px;box-shadow:0 4px 8px rgba(0,0,0,0.1);"></div>
+                </td>
+                <td><input type="number" class="item-qty" value="${data ? data.qty : 1}" min="1" style="width:70px;padding:6px;border:1px solid #ddd;border-radius:4px;"></td>
+                <td><input type="number" class="item-rate" step="0.01" value="${data ? data.rate : 0}" style="width:100px;padding:6px;border:1px solid #ddd;border-radius:4px;"></td>
+                <td class="item-total">₦0.00</td>
+                <td><button class="remove-item" style="color:red;background:none;border:none;cursor:pointer;font-size:18px;">✕</button></td>
+            `;
+
+            tbody.appendChild(row);
+
+            // If data provided, set values
+            if (data) {
+                const nameInput = row.querySelector('.item-name');
+                const qtyInput = row.querySelector('.item-qty');
+                const rateInput = row.querySelector('.item-rate');
+                if (data.name) nameInput.value = data.name;
+                if (data.qty) qtyInput.value = data.qty;
+                if (data.rate) rateInput.value = data.rate;
+                this.calculateRowTotal(row);
+            }
+
+            this.updateRowNumbers();
+            this.updateTotals();
+
+            // Focus on name input
+            setTimeout(() => {
+                row.querySelector('.item-name').focus();
+            }, 100);
+
+            return row;
+        }
+
+        // ============================================
+        // PRODUCT SEARCH / AUTOCOMPLETE
+        // ============================================
         async handleProductSearch(input) {
             const container = input.parentElement;
             let list = container.querySelector('.autocomplete-list');
@@ -267,10 +330,19 @@
             }
 
             try {
+                // Search products
                 const products = await this.inventory.manager.searchProducts(query);
                 
                 if (products.length === 0) {
-                    list.innerHTML = '<div style="padding:8px;color:#999;">No products found</div>';
+                    list.innerHTML = `
+                        <div style="padding:8px;color:#999;">No products found</div>
+                        <div style="padding:8px;border-top:1px solid #eee;">
+                            <button onclick="addNewProductFromInvoice('${query}')" 
+                                    style="background:#28a745;color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;">
+                                ➕ Create "${query}"
+                            </button>
+                        </div>
+                    `;
                     list.style.display = 'block';
                     return;
                 }
@@ -284,11 +356,17 @@
                         border-bottom: 1px solid #f0f0f0;
                         display: flex;
                         justify-content: space-between;
+                        align-items: center;
                     `;
+                    
+                    const priceNGN = (product.unitPriceUSD || 0) * 1600;
+                    const stock = product.quantity || 0;
+                    const stockColor = stock < 10 ? '#dc3545' : '#28a745';
+                    
                     item.innerHTML = `
                         <span><strong>${product.name}</strong></span>
-                        <span style="color:#666;">₦${(product.unitPriceUSD * 1600).toLocaleString()}</span>
-                        <span style="font-size:12px;color:#999;">Stock: ${product.quantity || 0}</span>
+                        <span style="color:#666;">₦${priceNGN.toLocaleString()}</span>
+                        <span style="font-size:12px;color:${stockColor};">Stock: ${stock}</span>
                     `;
                     
                     item.addEventListener('click', () => {
@@ -316,7 +394,6 @@
             const row = input.closest('.item-row');
             const rateInput = row.querySelector('.item-rate');
             const qtyInput = row.querySelector('.item-qty');
-            const totalCell = row.querySelector('.item-total');
             
             // Set product name
             input.value = product.name;
@@ -328,9 +405,10 @@
             
             // Check stock availability
             const available = product.quantity || 0;
-            if (available < parseInt(qtyInput.value || 1)) {
+            const currentQty = parseInt(qtyInput.value) || 1;
+            if (available < currentQty) {
                 alert(`⚠️ Only ${available} units in stock. Adjusting quantity.`);
-                qtyInput.value = Math.min(parseInt(qtyInput.value || 1), available);
+                qtyInput.value = Math.max(1, available);
             }
             
             // Update total
@@ -343,49 +421,9 @@
             if (list) list.style.display = 'none';
         }
 
-        addItemRow(data = null) {
-            const newRow = document.createElement('tr');
-            newRow.className = 'item-row';
-            
-            const rowCount = this.tbody.children.length + 1;
-            
-            newRow.innerHTML = `
-                <td class="sn">${rowCount}</td>
-                <td style="position:relative;">
-                    <input type="text" class="item-name" placeholder="Search product..." autocomplete="off" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px;">
-                    <div class="autocomplete-list" style="display:none;position:absolute;background:white;border:1px solid #ddd;border-radius:4px;max-height:200px;overflow-y:auto;z-index:1000;min-width:200px;box-shadow:0 4px 8px rgba(0,0,0,0.1);"></div>
-                </td>
-                <td><input type="number" class="item-qty" value="${data ? data.qty : 1}" min="1" style="width:80px;padding:6px;border:1px solid #ddd;border-radius:4px;"></td>
-                <td><input type="number" class="item-rate" step="0.01" value="${data ? data.rate : 0}" style="width:100px;padding:6px;border:1px solid #ddd;border-radius:4px;"></td>
-                <td class="item-total">₦0.00</td>
-                <td><button class="remove-item" style="color:red;background:none;border:none;cursor:pointer;font-size:18px;">✕</button></td>
-            `;
-            
-            this.tbody.appendChild(newRow);
-            this.updateRowNumbers();
-            this.setupRowEvents();
-            
-            // If data provided, set values
-            if (data) {
-                const nameInput = newRow.querySelector('.item-name');
-                const qtyInput = newRow.querySelector('.item-qty');
-                const rateInput = newRow.querySelector('.item-rate');
-                
-                if (data.name) nameInput.value = data.name;
-                if (data.qty) qtyInput.value = data.qty;
-                if (data.rate) rateInput.value = data.rate;
-                
-                this.calculateRowTotal(newRow);
-            }
-            
-            this.updateTotals();
-            
-            // Focus on name input
-            setTimeout(() => {
-                newRow.querySelector('.item-name').focus();
-            }, 100);
-        }
-
+        // ============================================
+        // CALCULATIONS
+        // ============================================
         calculateRowTotal(row) {
             const qtyInput = row.querySelector('.item-qty');
             const rateInput = row.querySelector('.item-rate');
@@ -395,7 +433,10 @@
             const rate = parseFloat(rateInput.value) || 0;
             const total = qty * rate;
             
-            totalCell.textContent = `₦${total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            totalCell.textContent = `₦${total.toLocaleString('en-US', {
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 2
+            })}`;
             
             return total;
         }
@@ -407,7 +448,6 @@
             this.tbody.querySelectorAll('.item-row').forEach(row => {
                 const qtyInput = row.querySelector('.item-qty');
                 const rateInput = row.querySelector('.item-rate');
-                const totalCell = row.querySelector('.item-total');
                 
                 const qty = parseFloat(qtyInput.value) || 0;
                 const rate = parseFloat(rateInput.value) || 0;
@@ -424,9 +464,21 @@
             const grandTotalEl = document.getElementById('grand-total');
             const itemCountEl = document.getElementById('item-count');
             
-            if (subtotalEl) subtotalEl.textContent = `₦${subtotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            if (grandTotalEl) grandTotalEl.textContent = `₦${subtotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            if (itemCountEl) itemCountEl.textContent = itemCount;
+            if (subtotalEl) {
+                subtotalEl.textContent = `₦${subtotal.toLocaleString('en-US', {
+                    minimumFractionDigits: 2, 
+                    maximumFractionDigits: 2
+                })}`;
+            }
+            if (grandTotalEl) {
+                grandTotalEl.textContent = `₦${subtotal.toLocaleString('en-US', {
+                    minimumFractionDigits: 2, 
+                    maximumFractionDigits: 2
+                })}`;
+            }
+            if (itemCountEl) {
+                itemCountEl.textContent = itemCount;
+            }
         }
 
         updateRowNumbers() {
@@ -439,16 +491,19 @@
         updateInvoiceNumber() {
             const docNoElements = document.querySelectorAll('*');
             for (const el of docNoElements) {
-                if (el.textContent && el.textContent.includes('DOCUMENT NO:')) {
-                    el.textContent = el.textContent.replace(/#?[\w-]+/, `#${this.invoiceNumber}`);
+                const text = el.textContent || '';
+                if (text.includes('DOCUMENT NO:')) {
+                    el.textContent = text.replace(/#?[\w-]+/, `#${this.invoiceNumber}`);
                     break;
                 }
             }
         }
 
+        // ============================================
+        // INVOICE DATA
+        // ============================================
         getInvoiceData() {
             const items = [];
-            let hasErrors = false;
             
             this.tbody.querySelectorAll('.item-row').forEach(row => {
                 const nameInput = row.querySelector('.item-name');
@@ -482,320 +537,6 @@
         }
 
         // ============================================
-        // CUSTOMER DATABASE
+        // CUSTOMER SECTION
         // ============================================
-        setupCustomerSection() {
-            const customerSection = this.findOrCreateSection(document.body, 'Customer Details');
-            
-            // Check if already enhanced
-            if (customerSection.querySelector('#customer-db-integration')) return;
-            
-            const wrapper = document.createElement('div');
-            wrapper.id = 'customer-db-integration';
-            wrapper.style.cssText = 'margin: 10px 0;';
-            
-            wrapper.innerHTML = `
-                <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;">
-                    <div style="flex:1;min-width:150px;">
-                        <label style="display:block;font-size:12px;color:#666;margin-bottom:3px;">Customer Name</label>
-                        <input type="text" id="customer-name" class="customer-input" placeholder="Search or enter customer..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;" autocomplete="off">
-                        <div id="customer-autocomplete" style="display:none;position:absolute;background:white;border:1px solid #ddd;border-radius:4px;max-height:150px;overflow-y:auto;z-index:1000;min-width:200px;box-shadow:0 4px 8px rgba(0,0,0,0.1);"></div>
-                    </div>
-                    <div style="flex:1;min-width:150px;">
-                        <label style="display:block;font-size:12px;color:#666;margin-bottom:3px;">Phone</label>
-                        <input type="text" id="customer-phone" class="customer-input" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;">
-                    </div>
-                    <div style="flex:2;min-width:200px;">
-                        <label style="display:block;font-size:12px;color:#666;margin-bottom:3px;">Address</label>
-                        <input type="text" id="customer-address" class="customer-input" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;">
-                    </div>
-                    <div>
-                        <button id="save-customer-btn" style="padding:8px 16px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;">💾 Save Customer</button>
-                    </div>
-                </div>
-                <div id="customer-list" style="margin-top:10px;font-size:13px;color:#666;"></div>
-            `;
-            
-            customerSection.appendChild(wrapper);
-            
-            // Setup customer events
-            this.setupCustomerEvents();
-        }
-
-        setupCustomerEvents() {
-            const nameInput = document.getElementById('customer-name');
-            const phoneInput = document.getElementById('customer-phone');
-            const addressInput = document.getElementById('customer-address');
-            const saveBtn = document.getElementById('save-customer-btn');
-            const autocompleteContainer = document.getElementById('customer-autocomplete');
-            
-            if (!nameInput) return;
-            
-            // Make container position relative for autocomplete
-            const container = nameInput.parentElement;
-            container.style.position = 'relative';
-            
-            // Search customers on input
-            nameInput.addEventListener('input', (e) => {
-                this.searchCustomers(e.target.value, autocompleteContainer);
-            });
-            
-            // Save customer
-            saveBtn.addEventListener('click', () => {
-                this.saveCustomer({
-                    name: nameInput.value.trim(),
-                    phone: phoneInput.value.trim(),
-                    address: addressInput.value.trim()
-                });
-            });
-            
-            // Click outside to hide autocomplete
-            document.addEventListener('click', (e) => {
-                if (!e.target.closest('#customer-name') && !e.target.closest('#customer-autocomplete')) {
-                    autocompleteContainer.style.display = 'none';
-                }
-            });
-        }
-
-        async searchCustomers(query, container) {
-            if (query.length < 1) {
-                container.style.display = 'none';
-                return;
-            }
-            
-            try {
-                const customers = await this.getCustomers(query);
-                
-                if (customers.length === 0) {
-                    container.innerHTML = `<div style="padding:8px;color:#999;">No customers found. Press Save to add.</div>`;
-                    container.style.display = 'block';
-                    return;
-                }
-                
-                container.innerHTML = '';
-                customers.forEach(customer => {
-                    const item = document.createElement('div');
-                    item.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;';
-                    item.innerHTML = `<strong>${customer.name}</strong><br><small style="color:#666;">${customer.phone || ''} ${customer.address || ''}</small>`;
-                    
-                    item.addEventListener('click', () => {
-                        this.selectCustomer(customer);
-                        container.style.display = 'none';
-                    });
-                    
-                    container.appendChild(item);
-                });
-                container.style.display = 'block';
-                
-            } catch (error) {
-                console.error('Customer search failed:', error);
-            }
-        }
-
-        selectCustomer(customer) {
-            document.getElementById('customer-name').value = customer.name;
-            document.getElementById('customer-phone').value = customer.phone || '';
-            document.getElementById('customer-address').value = customer.address || '';
-            this.customerData = customer;
-        }
-
-        async saveCustomer(data) {
-            if (!data.name) {
-                alert('Please enter a customer name');
-                return;
-            }
-            
-            try {
-                const saved = await this.inventory.manager.saveCustomer(data);
-                alert(`✅ Customer "${data.name}" saved successfully!`);
-                this.customerData = saved;
-                this.loadCustomerData();
-            } catch (error) {
-                alert('❌ Failed to save customer: ' + error.message);
-            }
-        }
-
-        async getCustomers(query = '') {
-            try {
-                return await this.inventory.manager.getCustomers(query);
-            } catch (error) {
-                console.error('Get customers failed:', error);
-                return [];
-            }
-        }
-
-        async loadCustomerData() {
-            try {
-                const customers = await this.getCustomers();
-                const listEl = document.getElementById('customer-list');
-                if (listEl && customers.length > 0) {
-                    listEl.innerHTML = `📋 Recent customers: ${customers.slice(0, 5).map(c => c.name).join(', ')}`;
-                }
-            } catch (error) {
-                console.error('Load customer data failed:', error);
-            }
-        }
-
-        setupInvoiceActions() {
-            // Find "Create Invoice" or "Save" button
-            const buttons = document.querySelectorAll('button');
-            let createBtn = null;
-            
-            for (const btn of buttons) {
-                if (btn.textContent && /create|save|generate|invoice/i.test(btn.textContent)) {
-                    createBtn = btn;
-                    break;
-                }
-            }
-            
-            if (createBtn) {
-                const originalClick = createBtn.onclick;
-                createBtn.addEventListener('click', (e) => {
-                    // Intercept to validate inventory
-                    this.validateBeforeInvoice(e, originalClick);
-                });
-            }
-        }
-
-        async validateBeforeInvoice(e, originalHandler) {
-            const invoiceData = this.getInvoiceData();
-            
-            if (invoiceData.items.length === 0) {
-                alert('Please add at least one item to the invoice.');
-                e.preventDefault();
-                return false;
-            }
-            
-            // Check stock for each item
-            let hasStockIssue = false;
-            
-            for (const item of invoiceData.items) {
-                if (item.productId) {
-                    const product = await this.inventory.manager.getProductWithStock(item.productId);
-                    if (product && product.quantity < item.qty) {
-                        alert(`⚠️ Insufficient stock for "${item.name}". Available: ${product.quantity}, Requested: ${item.qty}`);
-                        hasStockIssue = true;
-                    }
-                } else {
-                    // Product not in inventory - ask to add
-                    const addToInventory = confirm(`"${item.name}" is not in inventory. Would you like to add it now?`);
-                    if (addToInventory) {
-                        try {
-                            const newId = await this.inventory.manager.createProduct({
-                                name: item.name,
-                                unitPriceUSD: item.rate / 1600,
-                                initialStock: item.qty
-                            });
-                            alert(`✅ "${item.name}" added to inventory with ${item.qty} units.`);
-                        } catch (error) {
-                            alert(`❌ Failed to add product: ${error.message}`);
-                            hasStockIssue = true;
-                        }
-                    } else {
-                        hasStockIssue = true;
-                    }
-                }
-            }
-            
-            if (hasStockIssue) {
-                e.preventDefault();
-                return false;
-            }
-            
-            // If all checks pass, proceed with invoice creation
-            if (originalHandler) {
-                // Store invoice data for the original handler
-                window.__invoiceData = invoiceData;
-            }
-            
-            return true;
-        }
-    }
-
-    // ============================================
-    // EXTEND INVENTORY MANAGER WITH CUSTOMER METHODS
-    // ============================================
-    // Add customer methods to InventoryManager
-    const originalInit = window.__inventory?.manager?.constructor;
-    if (originalInit) {
-        InventoryManager.prototype.saveCustomer = async function(data) {
-            // Check if customer already exists
-            const existing = await this.db.query('customers', 'name', data.name);
-            if (existing.length > 0) {
-                // Update existing
-                const customer = existing[0];
-                customer.phone = data.phone || customer.phone;
-                customer.address = data.address || customer.address;
-                customer.updatedAt = new Date().toISOString();
-                await this.db.update('customers', customer);
-                return customer;
-            }
-            
-            // Create new customer
-            const customer = {
-                name: data.name,
-                phone: data.phone || '',
-                address: data.address || '',
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-            };
-            
-            const id = await this.db.add('customers', customer);
-            return { ...customer, id };
-        };
-        
-        InventoryManager.prototype.getCustomers = async function(query = '') {
-            if (query) {
-                const all = await this.db.getAll('customers');
-                const q = query.toLowerCase();
-                return all.filter(c => 
-                    c.name.toLowerCase().includes(q) ||
-                    (c.phone && c.phone.includes(q))
-                );
-            }
-            return await this.db.getAll('customers');
-        };
-    }
-
-    // ============================================
-    // INITIALIZATION
-    // ============================================
-    let integrationInstance = null;
-
-    async function initIntegration() {
-        try {
-            // Wait for DOM
-            await new Promise(resolve => {
-                if (document.readyState === 'complete') resolve();
-                else window.addEventListener('load', resolve);
-            });
-            
-            // Wait for inventory
-            await waitForInventory();
-            
-            // Create customers store if needed
-            const db = window.__inventory.db;
-            if (db && db.db) {
-                const stores = Array.from(db.db.objectStoreNames);
-                if (!stores.includes('customers')) {
-                    // Upgrade needed - will be handled on next init
-                    console.log('Creating customers store...');
-                }
-            }
-            
-            // Initialize integration
-            integrationInstance = new InvoiceInventoryIntegration();
-            await integrationInstance.init();
-            
-            console.log('✅ Invoice-Inventory integration ready!');
-            window.__invoiceIntegration = integrationInstance;
-            
-        } catch (error) {
-            console.error('❌ Integration init failed:', error);
-        }
-    }
-
-    // Auto-init
-    setTimeout(initIntegration, 1500);
-
-})();
+        setup
